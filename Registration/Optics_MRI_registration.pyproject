@@ -1,0 +1,12 @@
+{
+    "files": [
+        "Graphic_interface.py",
+        "module_ui/form.ui",
+        "module/main_functions.py",
+        "module/ITK.py",
+        "module/utils.py",
+        "module/utils_BRATS.py",
+        "module_ui/plot_functions.py",
+        "module/worker.py"
+    ]
+}
