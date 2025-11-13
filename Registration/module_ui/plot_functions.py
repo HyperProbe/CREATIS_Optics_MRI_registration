@@ -393,6 +393,7 @@ class MatplotlibWidget(FigureCanvas):
             if event.inaxes == self.ax1 :
                 pos = (int(event.xdata), int(event.ydata))
                 self.ax1.plot(pos[0], pos[1], 'ro')[0]
+                self.ax2.plot(pos[0], pos[1], 'ro', alpha=0.3)[0]
 
                 self.figure.canvas.draw()
 

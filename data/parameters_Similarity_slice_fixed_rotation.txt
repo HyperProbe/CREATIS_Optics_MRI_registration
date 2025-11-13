@@ -103,7 +103,7 @@
 
 
 //(AutomaticTransformInitializationMethod "Origins") // GeometricalCenter, CenterOfGravity, Origins
-(CenterOfRotationPoint 179.53387200832367 65.17412832379341)
+(CenterOfRotationPoint 151.42096331715584 141.2078191637993)
 // In generally, Compose is the best option in most cases.
 // It does not influence the results very much.
 (HowToCombineTransforms "Compose")

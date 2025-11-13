@@ -1,6 +1,7 @@
 # This Python file uses the following encoding: utf-8
 import sys
 
+# import PySide6
 from PySide6.QtWidgets import QApplication, QWidget, QFileDialog, QLabel, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import QObject, QThread, Signal, Qt, QPoint, QThreadPool
 from PySide6.QtGui import QCloseEvent
@@ -145,6 +146,10 @@ class main(QWidget):
         # #connect slots
         # self.worker.signals.status_signal.connect(self.on_display_status)
         # self.worker.signals.display_signal.connect(self.on_display_images)
+
+
+        # print("Pyside version")
+        # print(PySide6.__version__)
 
 
 

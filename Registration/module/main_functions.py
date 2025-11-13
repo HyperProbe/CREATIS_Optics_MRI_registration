@@ -634,8 +634,8 @@ def main_get_MRI_projection(Mypath = Paths(), params=Params()):
 
     # Calculate a new orthonormal basis. Consider that the vector between the center of mass of the tumor and the origin of MRI is the z axis
     # Vector between the center of mass of the tumor and the point at the surface
-    vector_Tumor_surface = vector(center_of_mass_tumor_itk,surface.GetOrigin())
-    # vector_Tumor_surface = vector(center_of_mass_tumor_itk, center_of_mass_MRI)
+    # vector_Tumor_surface = vector(center_of_mass_tumor_itk,surface.GetOrigin())
+    vector_Tumor_surface = vector(center_of_mass_tumor_itk, center_of_mass_MRI)
 
 
 
@@ -833,9 +833,6 @@ def main_plot_MRI_Projection(Mypath = Paths()):
     np_MRI_projection = 255*(np_MRI_projection-np_MRI_projection.min())/(np_MRI_projection.max() - np_MRI_projection.min())
     np_MRI_projection = np_MRI_projection.astype(np.uint8)
 
-    #Apply median filter for display only
-    # np_MRI_projection = cv.medianBlur(np_MRI_projection,3)
-    cv.imwrite(output_dir+"MRI_projection.png",np_MRI_projection)
 
     #Convert in RGB
     np_MRI_projection = cv.cvtColor(np_MRI_projection,cv.COLOR_GRAY2BGR)
@@ -844,6 +841,9 @@ def main_plot_MRI_Projection(Mypath = Paths()):
     #Draw tumor contour
     status, np_MRI_projection = main_draw_tumor_contour_on_projection(Mypath, np_MRI_projection)
 
+    #Apply median filter for display only
+    # np_MRI_projection = cv.medianBlur(np_MRI_projection,3)
+    cv.imwrite(output_dir+"MRI_projection.png",np_MRI_projection)
 
     #Convert in BGR
     np_MRI_projection = cv.cvtColor(np_MRI_projection,cv.COLOR_BGR2RGB)
@@ -2864,9 +2864,11 @@ def main_plot_MRI_projected_on_Optics_space(Mypath = Paths()):
 
 
     filename_mask_optics = main_path_optics+"mask.png"
-    filename_skeleton_optics = output_dir+"Optical_skeleton"+suffix_out_optics+".png"
+    filename_skeleton_optics = output_dir+"Optics_skeleton_.png"
     filename_MRI_skeleton = output_dir+"MRI_skeleton_projeced_on_Optics"+suffix_out_optics+".png"
     filename_MRI_proj = output_dir+"MRI_projeced_on_Optics"+suffix_out_optics+".png"
+
+    
 
     if not os.path.exists(filename_mask_optics): 
         return "Optics mask is missing",None
@@ -2891,14 +2893,14 @@ def main_plot_MRI_projected_on_Optics_space(Mypath = Paths()):
 
 
     #resize skeleton to match initial image size
-    skeleton_optics = cv.resize(skeleton_optics, (np_optical_img.shape[1], np_optical_img.shape[0]),cv.INTER_NEAREST)
+    # skeleton_optics = cv.resize(skeleton_optics, (np_optical_img.shape[1], np_optical_img.shape[0]),cv.INTER_NEAREST)
 
     #####################################
     # Dilate skeleton
     #####################################
     ksize = 10
     kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize,ksize))
-    skeleton_optics = cv.morphologyEx(skeleton_optics, op=cv.MORPH_DILATE, kernel=kernel)
+    # skeleton_optics = cv.morphologyEx(skeleton_optics, op=cv.MORPH_DILATE, kernel=kernel)
     np_rotated_MRI_skeleton = cv.morphologyEx(np_rotated_MRI_skeleton, op=cv.MORPH_DILATE, kernel=kernel)
 
 
@@ -2926,11 +2928,20 @@ def main_plot_MRI_projected_on_Optics_space(Mypath = Paths()):
     contours_surgical_window, hierarchy = cv.findContours(np_mask_optics.copy(), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
 
-
-    colormap = cv.COLORMAP_PLASMA
     #Display 1 undersampled image with skeleton
+    # colormap = cv.COLORMAP_PLASMA
     weight = 0.8
-    display_1 =  apply_colormap_with_mask(cv.applyColorMap(np_rotated_MRI_proj,colormap), skeleton_optics, skeleton_optics, "", weight)
+    # display_1 =  apply_colormap_with_mask(cv.applyColorMap(np_rotated_MRI_proj,colormap), skeleton_optics, skeleton_optics, "", weight)
+    display_1 = np_rotated_MRI_proj.copy()
+
+    for r in range(display_1.shape[0]):
+        for c in range(display_1.shape[1]):
+            if skeleton_optics[r,c] >0:
+                display_1[r,c,2] = skeleton_optics[r,c]
+
+    # BV = np.zeros(display_1.shape)
+    # BV[:,:,2] = skeleton_optics
+    # display_1 = merge_two_colored_img(display_1,BV,skeleton_optics,weight)
     cv.drawContours(display_1,contours_surgical_window,-1,(0,255,0),2)
 
 
