@@ -5,16 +5,44 @@ from skimage.transform import resize
 
 import json
 
+
+class Registration_Params:
+    def __init__(self, angle =-1, angle_custom_metric = -1, MRI_kpt=-1,  MRI_kpt_phys=-1,
+                 Optics_kpt=-1,  Optics_kpt_phys=-1, registration_metric = 0, registration_custom_metric=0):
+        self.angle = angle
+        self.angle_custom_metric = angle_custom_metric
+        self.MRI_kpt = MRI_kpt
+        self.MRI_kpt_phys = MRI_kpt_phys
+        self.Optics_kpt = Optics_kpt
+        self.Optics_kpt_phys = Optics_kpt_phys
+        self.registration_metric = registration_metric
+        self.registration_custom_metric = registration_custom_metric
+        
+    
+    def save(self, filepath):
+        """Save parameters to a JSON file"""
+        with open(filepath, 'w') as f:
+            json.dump(self.__dict__, f, indent=4)
+
+    @classmethod
+    def load(cls, filepath):
+        """Load parameters from a JSON file and return a Params object"""
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        return cls(**data)
+
 class Params:
-    def __init__(self, thresh_MRI=20, sigma_minimum_mm_MRI=0,
-                 sigma_maximum_mm_MRI=1, thresh_optics=40,
-                 sigma_minimum_mm_optics=1, sigma_maximum_mm_optics=1,
+    def __init__(self, thresh_MRI=5, sigma_minimum_mm_MRI=0,
+                 sigma_maximum_mm_MRI=1, thresh_optics=100, thresh_optics_array = np.array([80, 100, 120]),
+                 sigma_minimum_mm_optics=3, sigma_maximum_mm_optics=3,
+                 ksize_mm_kernal_specular_reflection_optics = 2,
                  sat_val_optics=180, number_of_sigma_steps=5,
                  k_dilatation_brain=5, projection_type="Transverse",
                  touch_vessel=False, use_bet=False, f_bet=0.65,
-                 kpts_MRI_tumor = None, kpt_optics = None, multi_metric_multi_images = False,
+                 kpts_MRI_tumor = None, kpt_optics = None, registration_type = "Skeleton",
                  use_upscaled_images = False, register_fMRI_to_T1 = True, optics_skeleton_apriori = None,
-                 MRI_skeleton_apriori=None, use_top_slice_for_projection= True, projection_base_axis = "Y axis"):
+                 MRI_skeleton_apriori=None, use_top_slice_for_projection= True, projection_base_axis = "Y axis",
+                 axis_projection = "Origin MRI", mask_MRI_hemisphere=True, MRI_erode_edge_mm = 40, use_custom_registration_metric = True):
 
         #bet params
         self.use_bet = use_bet
@@ -24,9 +52,13 @@ class Params:
         self.projection_type = projection_type
         self.use_top_slice_for_projection = use_top_slice_for_projection
         self.projection_base_axis = projection_base_axis
+        self.axis_projection = axis_projection
+        self.mask_MRI_hemisphere = mask_MRI_hemisphere
+
 
         #Registration
         self.register_fMRI_to_T1 = register_fMRI_to_T1
+        self.use_custom_registration_metric = use_custom_registration_metric
 
         #Cortex max param
         self.k_dilatation_brain = k_dilatation_brain #Nb of voxel for getting surface blood vessels
@@ -35,12 +67,15 @@ class Params:
         self.thresh_MRI = thresh_MRI
         self.sigma_minimum_mm_MRI = sigma_minimum_mm_MRI
         self.sigma_maximum_mm_MRI = sigma_maximum_mm_MRI
+        self.MRI_erode_edge_mm = MRI_erode_edge_mm
 
         #Optics params for vessel extraction
         self.thresh_optics =  thresh_optics
+        self.thresh_optics_array = thresh_optics_array
         self.sigma_minimum_mm_optics = sigma_minimum_mm_optics
         self.sigma_maximum_mm_optics = sigma_maximum_mm_optics
         self.sat_val_optics = sat_val_optics #optics satured pixels removal
+        self.ksize_mm_kernal_specular_reflection_optics = ksize_mm_kernal_specular_reflection_optics
 
         #Frangi params
         self.number_of_sigma_steps = number_of_sigma_steps #nb of scales for frangi
@@ -56,7 +91,7 @@ class Params:
         self.kpt_optics = kpt_optics
 
         #registation
-        self.multi_metric_multi_images = multi_metric_multi_images #Calculate mutli metric/image registration
+        self.registration_type = registration_type #Calculate mutli metric/image registration
 
         self.use_upscaled_images = use_upscaled_images
 
@@ -84,10 +119,16 @@ class Params:
 class Paths:
     def __init__(self, main_path="", RGB_optics=True):
 
-        self.output_dir = ""
         self.main_path = ""
         self.main_path_optics =""
 
+        self.output_dir = ""
+        self.output_registration_dir = ""
+        self.output_MRI_projection_dir = ""
+        self.output_BV_segmentation_dir = ""
+        self.output_tumor_segmentation_dir = ""
+
+        
         self.set_main_path(main_path)
 
         self.set_Optics_path(RGB_optics)
@@ -105,6 +146,27 @@ class Paths:
         self.output_dir = main_path +  "/results/"
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
+
+        #Registration
+        self.output_registration_dir = self.output_dir+"Registration/"
+        if not os.path.exists(self.output_registration_dir):
+            os.mkdir(self.output_registration_dir)
+
+        #MRI projection
+        self.output_MRI_projection_dir = self.output_dir+"MRI_projection/"
+        if not os.path.exists(self.output_MRI_projection_dir):
+            os.mkdir(self.output_MRI_projection_dir)
+
+        #Blood vessel segmentation
+        self.output_BV_segmentation_dir = self.output_dir+"Blood_vessel_segmentation/"
+        if not os.path.exists(self.output_BV_segmentation_dir):
+            os.mkdir(self.output_BV_segmentation_dir)
+
+
+        #Blood vessel segmentation
+        self.output_tumor_segmentation_dir = self.output_dir+"Tumor_segmentation/"
+        if not os.path.exists(self.output_tumor_segmentation_dir):
+            os.mkdir(self.output_tumor_segmentation_dir)
 
     def set_Optics_path(self,RGB_optics=True):
         if self.main_path =="":
@@ -195,6 +257,9 @@ def main_get_surface_mask(Mypath = Paths(),params=Params()):
     os.rename(main_path_MRI+"surface_mask.nii.gz", output_dir+"surface_mask.nii.gz")
     os.rename(main_path_MRI+"volume_mask.nii.gz", output_dir+"volume_mask.nii.gz")
 
+
+    
+
     return "Success"
 
 
@@ -247,6 +312,7 @@ def main_get_tumor_segmentation(Mypath = Paths()):
 
     main_path = Mypath.main_path
     output_dir = Mypath.output_dir
+    tumor_segmentation_dir = Mypath.output_tumor_segmentation_dir
 
     main_path_MRI = main_path + "/MRI/"
 
@@ -254,16 +320,21 @@ def main_get_tumor_segmentation(Mypath = Paths()):
     filename_t1_bet = output_dir+"r_T1_bet.nii.gz"
     filename_flair = main_path_MRI+"FLAIR.nii"
 
+    filename_mask_brain = output_dir+"volume_mask.nii.gz"
+
     if not os.path.exists(filename_t1):
-        return "T1 file is missing"
+        return "[main_get_tumor_segmentation] T1 file is missing"
 
     if not os.path.exists(filename_flair):
-        return "Flair file is missing"
+        return "[main_get_tumor_segmentation] Flair file is missing"
+    
+    if not os.path.exists(filename_mask_brain):
+        return "[main_get_tumor_segmentation] Brain mask is missing"
     
 
 
     #Preprocess data in BRATS space
-    param_transform_atlas = preprocess_exam_in_brats_style_ITK(filename_t1, filename_flair, filename_t1_bet, output_dir)
+    param_transform_atlas = preprocess_exam_in_brats_style_ITK(filename_t1, filename_flair, filename_t1_bet, filename_mask_brain, tumor_segmentation_dir)
 
     #Free GPU cache
     torch.cuda.empty_cache()
@@ -272,19 +343,19 @@ def main_get_tumor_segmentation(Mypath = Paths()):
     #Process tumor segmentation
     segmenter = AdultGliomaSegmenter()
     segmenter.infer_single(
-        t1c = output_dir+"r_T1_bet_atlas.nii.gz",
-        t1n = output_dir+"r_T1_bet_atlas.nii.gz",
-        t2f = output_dir+"r_FLAIR_bet_atlas.nii.gz",
-        t2w = output_dir+"r_FLAIR_bet_atlas.nii.gz",
-        output_file=output_dir+"segmentation_atlas_space.nii.gz",
-        log_file = output_dir+"log.txt"
+        t1c = tumor_segmentation_dir+"r_T1_bet_atlas.nii.gz",
+        t1n = tumor_segmentation_dir+"r_T1_bet_atlas.nii.gz",
+        t2f = tumor_segmentation_dir+"r_FLAIR_bet_atlas.nii.gz",
+        t2w = tumor_segmentation_dir+"r_FLAIR_bet_atlas.nii.gz",
+        output_file=tumor_segmentation_dir+"segmentation_atlas_space.nii.gz",
+        log_file = tumor_segmentation_dir+"log.txt"
     )
 
 
     # Registration back to T1 space"
-    filename_tumor = output_dir+ "segmentation_atlas_space.nii.gz"
+    filename_tumor = tumor_segmentation_dir+ "segmentation_atlas_space.nii.gz"
 
-    register_tumor_segmentation_to_T1_space(output_dir, filename_t1_bet, filename_tumor, param_transform_atlas)
+    register_tumor_segmentation_to_T1_space(tumor_segmentation_dir, filename_t1_bet, filename_tumor, param_transform_atlas)
         
 
     return "Success"
@@ -493,7 +564,7 @@ def main_plot_fMRI_T1_registration(Mypath = Paths()):
 
 
     if not os.path.exists(filename_t1):
-        return "T1 file is missing",None,None
+        return "[main_plot_fMRI_T1_registration] T1 file is missing",None,None
 
     if not os.path.exists(filename_fMRI):
         return "fMRI file is missing",None,None
@@ -567,32 +638,226 @@ def main_plot_fMRI_T1_registration(Mypath = Paths()):
 
 
 def main_load_MRI_projection(Mypath = Paths()):
-    output_dir = Mypath.output_dir
+    output_dir = Mypath.output_MRI_projection_dir
 
     if not os.path.exists(output_dir+"Proj_MRI.nii.gz"):
-        return "projection file is missing", None
+        return "[main_load_MRI_projection] projection file is missing", None
 
     itk_img = itk.imread(output_dir+"Proj_MRI.nii.gz")
     np_img = itk.GetArrayFromImage(itk_img)
 
     return "Success", np_img
 
-def main_get_MRI_projection(Mypath = Paths(), params=Params()):
+
+
+
+
+def get_MRI_mask_around_tumor(Mypath = Paths(), params = Params()):
+    main_path_otpics = Mypath.main_path_optics
+    Projection_MRI_dir = Mypath.output_MRI_projection_dir
+
+    file_resolution_optics = main_path_otpics+"resolution.txt"
+    filename_optics_mask = main_path_otpics+"mask.png"
+    filename_tumor_masks = Projection_MRI_dir+"Mask_Proj_Tumor.nii.gz"
+
+
+
+    filename_MRI_mask_hemisphere = Projection_MRI_dir+"Hemisphere_Mask_Proj_MRI.nii.gz"
+    filename_MRI_mask = Projection_MRI_dir+"Mask_Proj_MRI.nii.gz"
+
+
+
+    if not os.path.exists(filename_optics_mask):
+        return "[get_MRI_mask_around_tumor] Optical mask is missing"
+
+    if not os.path.exists(file_resolution_optics):
+        return "[get_MRI_mask_around_tumor] Optical resolution file is missing"
+
+    if not os.path.exists(filename_MRI_mask):
+        return "[get_MRI_mask_around_tumor] MRI projection mask is missing"
+    
+    if not os.path.exists(filename_MRI_mask_hemisphere):
+        return "[get_MRI_mask_around_tumor] MRI hemisphere projection mask is missing"
+
+    if not os.path.exists(filename_tumor_masks):
+        return "[get_MRI_mask_around_tumor] Tumor mask projection file is missing"
+
+
+    #load mask
+    mask = cv.imread(filename_optics_mask,cv.IMREAD_ANYCOLOR)
+
+    mri_mask = itk.imread(filename_MRI_mask, itk.F)
+    res_MRI_mm = np.max(np.array([mri_mask.GetSpacing()[0], mri_mask.GetSpacing()[1]]))
+    np_mri_mask = itk.GetArrayFromImage(mri_mask)
+    np_mri_mask[np_mri_mask>1] = 1
+    np_mri_mask = np_mri_mask.astype(np.uint8)
+
+    mri_mask_hemisphere = itk.imread(filename_MRI_mask_hemisphere, itk.F)
+    np_mri_mask_hemisphere = itk.GetArrayFromImage(mri_mask_hemisphere)
+    np_mri_mask_hemisphere[np_mri_mask_hemisphere>1] = 1
+    np_mri_mask_hemisphere = np_mri_mask_hemisphere.astype(np.uint8)
+
+
+    # erode edge of half hemisphere to remove central sulci
+    ksize_mm = 20
+    ksize_px = int(ksize_mm/res_MRI_mm)
+    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize_px,ksize_px))
+    np_mri_mask_hemisphere = cv.morphologyEx(np_mri_mask_hemisphere, op=cv.MORPH_ERODE, kernel=kernel)
+
+
+    # erode edge on the full projectio of MRI mask
+    ksize_mm = params.MRI_erode_edge_mm
+    ksize_px = int(ksize_mm/res_MRI_mm)
+    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize_px,ksize_px))
+    np_mri_mask = cv.morphologyEx(np_mri_mask, op=cv.MORPH_ERODE, kernel=kernel)
+
+
+    #Remove the hemisphere that is not usefull
+    np_mri_mask = np.bitwise_and(np_mri_mask,np_mri_mask_hemisphere)
+
+
+    tumor_mask = itk.imread(filename_tumor_masks, itk.F)
+    np_tumor_mask = itk.GetArrayFromImage(tumor_mask)
+    np_tumor_mask[np_tumor_mask>1] = 1
+    np_tumor_mask = np_tumor_mask.astype(np.uint8)
+
+    #Load image resolution
+    res_opt_in_mm = float(np.loadtxt(file_resolution_optics))
+    
+
+    #Get min area rectangle around surgical window
+    max_size_surgical_window_optics_mm = get_max_size_mask_mm(mask, res_opt_in_mm)
+    max_size_tumor_MRI_mm = get_max_size_mask_mm(np_tumor_mask, res_MRI_mm)
+
+
+    #process dilatation to enlarge tumor mask
+    n_repet = int(np.ceil((max_size_surgical_window_optics_mm - max_size_tumor_MRI_mm/2)/res_MRI_mm))
+    kernel = np.ones((3, 3), np.uint8)
+    # kernel = cv.getStructuringElement(cv.MORPH_CROSS, (3, 3))
+    np_mri_mask_tumor_enlarged = cv.dilate(np_tumor_mask, kernel, iterations=n_repet)
+
+    #apply tumor mask to MRI mask
+    np_mri_mask_tumor_enlarged = np.bitwise_and(np_mri_mask,np_mri_mask_tumor_enlarged)
+
+
+
+    #Write image
+    mri_mask_tumor_enlarged = itk.GetImageFromArray(np.ascontiguousarray(np_mri_mask_tumor_enlarged))
+    mri_mask_tumor_enlarged = mri_mask_tumor_enlarged.astype(itk.SS)
+    mri_mask_tumor_enlarged.SetSpacing(mri_mask.GetSpacing())
+    mri_mask_tumor_enlarged.SetDirection(mri_mask.GetDirection())
+    mri_mask_tumor_enlarged.SetOrigin(mri_mask.GetOrigin())
+    itk.imwrite(mri_mask_tumor_enlarged, Projection_MRI_dir+"Mask_Proj_MRI_around_tumor.nii.gz")
+
+    return "Success"
+
+
+def main_select_tumor_brain_hemisphere(Mypath = Paths()):
 
 
     output_dir = Mypath.output_dir
+    filename_surface_mask = output_dir+'surface_mask.nii.gz'
+    filename_tumor_mask = Mypath.output_tumor_segmentation_dir+'r_tumor_mask.nii.gz'
+
+    if not os.path.exists(filename_surface_mask):
+        return "[main_select_tumor_brain_hemisphere] Surface mask is missing"
+    
+    if not os.path.exists(filename_tumor_mask):
+        return "[main_select_tumor_brain_hemisphere] Surface mask is missing"
+    
+
+
+
+
+
+
+    # Read the binary mask
+    mask_itk = itk.imread(filename_surface_mask)
+    mask_np = itk.GetArrayFromImage(mask_itk)  # ITK → NumPy (z, y, x)
+
+    #Load tumor mask
+    tumor_mask = itk.imread(filename_tumor_mask)
+    tumor_mask_np = itk.GetArrayFromImage(tumor_mask)  # ITK → NumPy (z, y, x)
+
+    
+
+    # Determine which axis corresponds to left–right (usually x-axis)
+    # Compute mid-sagittal plane index (in voxel space)
+    mid_idx = mask_np.shape[2] // 2
+
+
+
+
+    #Count nb of voxel in each hemisphere
+    hemisphere_mask = np.zeros(mask_np.shape, dtype=np.uint8)
+    if np.count_nonzero(tumor_mask[:, :, :mid_idx]) >= np.count_nonzero(tumor_mask[:, :, mid_idx:]):
+        hemisphere_mask[:, :, :mid_idx] = mask_np[:, :, :mid_idx]
+    else:
+        hemisphere_mask[:, :, mid_idx:] = mask_np[:, :, mid_idx:]
+
+
+    # Convert back to ITK and keep metadata
+    itk_hemisphere_mask = itk.GetImageFromArray(hemisphere_mask)
+    itk_hemisphere_mask.SetSpacing(mask_itk.GetSpacing())
+    itk_hemisphere_mask.SetOrigin(mask_itk.GetOrigin())
+    itk_hemisphere_mask.SetDirection(mask_itk.GetDirection())
+
+    # Save results
+    itk.imwrite(itk_hemisphere_mask, Mypath.output_MRI_projection_dir+'hemisphere_mask.nii.gz')
+
+
+
+
+
+
+    # #Load surface mask
+    # nii_surface_mask = nib.load(filename_surface_mask)
+    # surface_mask = np.asarray(nii_surface_mask.dataobj)
+    # affine_surface_mask = nii_surface_mask.affine
+
+    # #Load tumor mask
+    # nii_tumor_mask = nib.load(filename_tumor_mask)
+    # tumor_mask = np.asarray(nii_tumor_mask.dataobj)
+
+
+    # # Compute voxel coordinates in world space
+    # nx, ny, nz = surface_mask.shape
+    # coords = np.arange(nx)
+    # x_world = nib.affines.apply_affine(affine_surface_mask, np.column_stack((coords, np.zeros(nx), np.zeros(nx))))[:, 0]
+
+    # # Find midline (x=0 in world coordinates)
+    # mid_idx = np.argmin(np.abs(x_world))
+
+
+    # #Count nb of voxel in each hemisphere
+    # hemisphere_mask = np.zeros_like(surface_mask)
+    # if np.count_nonzero(tumor_mask[:mid_idx, :, :]) >= np.count_nonzero(tumor_mask[mid_idx:, :, :]):
+    #     hemisphere_mask = surface_mask[:mid_idx, :, :]
+    # else:
+    #     hemisphere_mask = surface_mask[mid_idx:, :, :]
+
+    # # Save if needed
+    # nib.save(nib.Nifti1Image(hemisphere_mask.astype(np.uint8), affine_surface_mask), output_dir+'hemisphere_mask.nii.gz')
+
+    return "Success"
+
+def main_get_MRI_projection(Mypath = Paths(), params=Params()):
+
+    error = main_select_tumor_brain_hemisphere(Mypath)
+    if error != "Success":
+        return error
+
+    output_dir = Mypath.output_dir
+    result_dir = Mypath.output_MRI_projection_dir
     #################
     # Load mri volume
     #################
 
 
-
-    
-
-
     filename_t1 = output_dir + "r_T1_bet.nii.gz"
     filename_surface_mask = output_dir+'surface_mask.nii.gz'
-    filename_tumor = output_dir+'r_tumor_mask.nii.gz'
+    filename_tumor = Mypath.output_tumor_segmentation_dir+'r_tumor_mask.nii.gz'
+    filename_hemisphere_tumor = result_dir+'hemisphere_mask.nii.gz'
     filename_fMRI_stats = glob.glob(output_dir + "fMRI/inferences/*")
 
 
@@ -604,6 +869,10 @@ def main_get_MRI_projection(Mypath = Paths(), params=Params()):
 
     if not os.path.exists(filename_tumor):
         return "Tumor file is missing"
+    
+    if not os.path.exists(filename_hemisphere_tumor):
+        return "Mask hemisphere file is missing"
+    
     
 
     #remove previous files
@@ -617,10 +886,12 @@ def main_get_MRI_projection(Mypath = Paths(), params=Params()):
     else:
         out_fMRI_dir = None
 
-    # Load anatomical MRI
+    # Load MRI volumes
     T1 = itk.imread(filename_t1, itk.F)
     surface = itk.imread(filename_surface_mask, itk.F)
     tumor = itk.imread(filename_tumor, itk.F)
+    hemisphere_mask = itk.imread(filename_hemisphere_tumor, itk.F)
+
 
     ##################################
     # Calculate the rotation transform
@@ -634,8 +905,11 @@ def main_get_MRI_projection(Mypath = Paths(), params=Params()):
 
     # Calculate a new orthonormal basis. Consider that the vector between the center of mass of the tumor and the origin of MRI is the z axis
     # Vector between the center of mass of the tumor and the point at the surface
-    # vector_Tumor_surface = vector(center_of_mass_tumor_itk,surface.GetOrigin())
-    vector_Tumor_surface = vector(center_of_mass_tumor_itk, center_of_mass_MRI)
+
+    if params.axis_projection == "Origin MRI":
+        vector_Tumor_surface = vector(center_of_mass_tumor_itk,surface.GetOrigin())
+    else:
+        vector_Tumor_surface = vector(center_of_mass_tumor_itk, center_of_mass_MRI)
 
 
 
@@ -655,21 +929,24 @@ def main_get_MRI_projection(Mypath = Paths(), params=Params()):
     T = np.zeros((3,))
 
     #Save rotation matrix and translation for projection
-    np.savetxt(output_dir+"Rotation_matrix_projection.txt",R)
-    np.savetxt(output_dir+"Translation_vector_projection.txt",T)
+    np.savetxt(result_dir+"Rotation_matrix_projection.txt",R)
+    np.savetxt(result_dir+"Translation_vector_projection.txt",T)
 
 
 
     #######################
     # Apply Rotation
     #######################
-    filename_MRI_surface = output_dir+'surface_mask_rotated.nii.gz'
+    filename_MRI_surface = result_dir+'surface_mask_rotated.nii.gz'
     Apply_Afffine_Transform(R, T, surface, center_of_mass_MRI, filename_MRI_surface)
 
-    filename_T1 = output_dir+'T1_rotated.nii.gz'
+    filename_MRI_hemisphere_surface = result_dir+'hemisphere_mask_rotated.nii.gz'
+    Apply_Afffine_Transform(R, T, hemisphere_mask, center_of_mass_MRI, filename_MRI_hemisphere_surface)
+
+    filename_T1 = result_dir+'T1_rotated.nii.gz'
     Apply_Afffine_Transform(R, T, T1, center_of_mass_MRI, filename_T1)
 
-    filename_tumor = output_dir+'Tumor_rotated.nii.gz'
+    filename_tumor = result_dir+'Tumor_rotated.nii.gz'
     Apply_Afffine_Transform(R, T, tumor, center_of_mass_MRI, filename_tumor)
 
 
@@ -693,9 +970,15 @@ def main_get_MRI_projection(Mypath = Paths(), params=Params()):
     T1 = itk.imread(filename_T1, itk.F)
     surface = itk.imread(filename_MRI_surface, itk.F)
     tumor = itk.imread(filename_tumor, itk.F)
+    hemisphere_mask = itk.imread(filename_MRI_hemisphere_surface, itk.F)
+
+    #Apply hemisphere mask to rotated T1
+    hemisphere_T1 = MultiplyFilter(T1,hemisphere_mask)
+
 
     # Get numpy arrays
     np_T1 = itk.GetArrayFromImage(T1)
+    np_hemisphere_T1 = itk.GetArrayFromImage(hemisphere_T1)
     np_surface = itk.GetArrayFromImage(surface)
     np_tumor = itk.GetArrayFromImage(tumor)
 
@@ -705,7 +988,11 @@ def main_get_MRI_projection(Mypath = Paths(), params=Params()):
                                                                         np_surface,
                                                                         np_tumor,
                                                                         Projection=params.projection_type)
-
+    
+    np_MRI_hemisphere_projection, np_mask_hemisphere, np_tumor_mask = create_MRI_projection_np(np_hemisphere_T1,
+                                                                        np_surface,
+                                                                        np_tumor,
+                                                                        Projection=params.projection_type)
 
     # Get spacing
     mri_spacing = T1.GetSpacing()
@@ -726,15 +1013,31 @@ def main_get_MRI_projection(Mypath = Paths(), params=Params()):
     #Write itk image
     proj = itk.GetImageFromArray(np.ascontiguousarray(np_MRI_projection))
     proj.SetSpacing([spacing_projection[0], spacing_projection[1]])
-    itk.imwrite(proj,output_dir+"Proj_MRI.nii.gz")
+    itk.imwrite(proj,result_dir+"Proj_MRI.nii.gz")
 
     proj = itk.GetImageFromArray(np.ascontiguousarray(np_mask))
     proj.SetSpacing([spacing_projection[0], spacing_projection[1]])
-    itk.imwrite(proj,output_dir+"Mask_Proj_MRI.nii.gz")
+    itk.imwrite(proj,result_dir+"Mask_Proj_MRI.nii.gz")
+
+    proj = itk.GetImageFromArray(np.ascontiguousarray(np_MRI_hemisphere_projection))
+    proj.SetSpacing([spacing_projection[0], spacing_projection[1]])
+    itk.imwrite(proj,result_dir+"Hemisphere_Proj_MRI.nii.gz")
+
+    proj = itk.GetImageFromArray(np.ascontiguousarray(np_mask_hemisphere))
+    proj.SetSpacing([spacing_projection[0], spacing_projection[1]])
+    itk.imwrite(proj,result_dir+"Hemisphere_Mask_Proj_MRI.nii.gz")
+     
 
     proj = itk.GetImageFromArray(np.ascontiguousarray(np_tumor_mask))
     proj.SetSpacing([spacing_projection[0], spacing_projection[1]])
-    itk.imwrite(proj,output_dir+"Mask_Proj_Tumor.nii.gz")
+    itk.imwrite(proj,result_dir+"Mask_Proj_Tumor.nii.gz")
+
+
+
+    # Only keep grey matter around tumor by dilating tumor mask to correspond to surgical window size
+    error = get_MRI_mask_around_tumor(Mypath, params)
+    if error != "Success":
+        return error
 
 
     #################################
@@ -792,16 +1095,16 @@ def main_resize_np_projection(itk_img):
 def main_draw_tumor_contour_on_projection(Mypath = Paths(), MRI_projection=None):
     
     if MRI_projection is None:
-        return "MRI projection is missing",None
+        return "[main_draw_tumor_contour_on_projection] MRI projection is missing",None
     
     if MRI_projection.ndim != 3:
-        return "MRI projection is not RGB",None
+        return "[main_draw_tumor_contour_on_projection] MRI projection is not RGB",None
     
     #Get tumor contour
-    filename_tumor_masks = Mypath.output_dir+"Mask_Proj_Tumor.nii.gz"
+    filename_tumor_masks = Mypath.output_MRI_projection_dir+"Mask_Proj_Tumor.nii.gz"
 
     if not os.path.exists(filename_tumor_masks):
-        return "Tumor mask projection file is missing",None
+        return "[main_draw_tumor_contour_on_projection] Tumor mask projection file is missing",None
     
     tumor_mask = itk.imread(filename_tumor_masks, itk.F)
     np_tumor_mask = itk.GetArrayFromImage(tumor_mask).astype(np.uint8)
@@ -816,33 +1119,46 @@ def main_draw_tumor_contour_on_projection(Mypath = Paths(), MRI_projection=None)
 def main_plot_MRI_Projection(Mypath = Paths()):
 
 
-    output_dir = Mypath.output_dir
+    output_dir = Mypath.output_MRI_projection_dir
     #######################
     # Display projection
     #######################
 
     filename_proj = output_dir+"Proj_MRI.nii.gz"
+    filename_mask_proj_hemisphere_tumor = output_dir+"Mask_Proj_MRI_around_tumor.nii.gz"
 
     if not os.path.exists(filename_proj):
-        return "T1 projection file is missing",None
+        return "[main_plot_MRI_Projection] T1 projection file is missing",None
+    
+    if not os.path.exists(filename_mask_proj_hemisphere_tumor):
+        return "[main_plot_MRI_Projection] Mask projection (hemisphere + tumor) is missing",None
 
     proj = itk.imread(filename_proj, itk.F)
     np_MRI_projection = itk.GetArrayFromImage(proj)
+
+    mask_MRI = itk.imread(filename_mask_proj_hemisphere_tumor, itk.F)
+    np_mask_MRI = itk.GetArrayFromImage(mask_MRI).astype(np.uint8)
 
     #Display only - Plot MRI and tumor projection
     np_MRI_projection = 255*(np_MRI_projection-np_MRI_projection.min())/(np_MRI_projection.max() - np_MRI_projection.min())
     np_MRI_projection = np_MRI_projection.astype(np.uint8)
 
-
     #Convert in RGB
     np_MRI_projection = cv.cvtColor(np_MRI_projection,cv.COLOR_GRAY2BGR)
 
-
     #Draw tumor contour
     status, np_MRI_projection = main_draw_tumor_contour_on_projection(Mypath, np_MRI_projection)
+    if status != "Success":
+        return status,None
+    
+    #Draw mask MRI
+    contours, hierarchy = cv.findContours(np_mask_MRI, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    
+    #Draw contours on MRI projection
+    cv.drawContours(np_MRI_projection, contours, -1, (255,0,0), 1)
+    
 
     #Apply median filter for display only
-    # np_MRI_projection = cv.medianBlur(np_MRI_projection,3)
     cv.imwrite(output_dir+"MRI_projection.png",np_MRI_projection)
 
     #Convert in BGR
@@ -858,18 +1174,22 @@ def main_plot_MRI_Projection(Mypath = Paths()):
 
 def main_get_vessels_in_MRI(Mypath = Paths(), params=Params()):
     
-    output_dir = Mypath.output_dir
-    
-    
-    filename_MRI = output_dir+"Proj_MRI.nii.gz"
-    filename_MRI_mask = output_dir+"Mask_Proj_MRI.nii.gz"
+    result_dir = Mypath.output_BV_segmentation_dir
+    filename_MRI = Mypath.output_MRI_projection_dir+"Proj_MRI.nii.gz"
+
+    # if params.mask_MRI_hemisphere:
+    #     prefix = "Hemisphere_"
+    # else:
+    #     prefix = ""
+    # filename_MRI_mask = Mypath.output_MRI_projection_dir+prefix+"Mask_Proj_MRI.nii.gz"
+    filename_MRI_mask = Mypath.output_MRI_projection_dir+"Mask_Proj_MRI_around_tumor.nii.gz"
 
 
     if not os.path.exists(filename_MRI):
-        return "MRI projection is missing"
+        return "[main_get_vessels_in_MRI] MRI projection is missing"
 
     if not os.path.exists(filename_MRI_mask):
-        return "MRI projection is missing"
+        return "[main_get_vessels_in_MRI] MRI projection is missing"
 
 
     #################################
@@ -881,6 +1201,7 @@ def main_get_vessels_in_MRI(Mypath = Paths(), params=Params()):
     np_mri = itk.GetArrayFromImage(mri)
     np_mri = (1600)*(np_mri - np_mri.min())/(np_mri.max() - np_mri.min())
     np_mri = np_mri.astype(np.uint16)
+
 
     _mri = itk.GetImageFromArray(np.ascontiguousarray(np_mri))
     _mri = _mri.astype(itk.SS)
@@ -918,19 +1239,10 @@ def main_get_vessels_in_MRI(Mypath = Paths(), params=Params()):
 
     #BLood vessel segmentation
     mri_enhanced = ((mri_enhanced - mri_enhanced.min())/(mri_enhanced.max() - mri_enhanced.min())*255).astype(np.uint8)
-    cv.imwrite(output_dir+"MRI_proj_enhanced.png",mri_enhanced)
+    cv.imwrite(result_dir+"MRI_proj_enhanced.png",mri_enhanced)
 
 
 
-    # erode edge
-    # ksize_mm = 60
-    # ksize_mm = 40
-    # ksize_mm = 40
-    ksize_mm = 20
-
-    ksize_px = int(ksize_mm/res_mri)
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize_px,ksize_px))
-    mask_erode = cv.morphologyEx(mask_mri, op=cv.MORPH_ERODE, kernel=kernel)
 
 
 
@@ -944,7 +1256,7 @@ def main_get_vessels_in_MRI(Mypath = Paths(), params=Params()):
         #Binarization
         th,mri_vessels = cv.threshold(np.copy(mri_enhanced), params.thresh_MRI, 255, cv.THRESH_BINARY)
 
-        mri_vessels = mri_vessels*mask_erode
+        mri_vessels = mri_vessels*mask_mri
 
         #Remove small contours
         min_area_mm = 3
@@ -959,7 +1271,7 @@ def main_get_vessels_in_MRI(Mypath = Paths(), params=Params()):
 
     #Create skeleton
     skeleton_MRI = cv.ximgproc.thinning(mri_vessels.astype(np.uint8))
-    cv.imwrite(output_dir+"MRI_proj_skeleton.png",skeleton_MRI)
+    cv.imwrite(result_dir+"MRI_proj_skeleton.png",skeleton_MRI)
 
 
     #Create binary image
@@ -971,60 +1283,70 @@ def main_get_vessels_in_MRI(Mypath = Paths(), params=Params()):
     #Write images
     itk_mri = itk.GetImageFromArray(np.ascontiguousarray(mri_vessels))
     itk_mri.SetSpacing(mri.GetSpacing())
-    itk.imwrite(itk_mri, output_dir+"T1_proj_mask_large_vessels.nii.gz")
+    itk.imwrite(itk_mri, result_dir+"T1_proj_mask_large_vessels.nii.gz")
+
 
     itk_mri = itk.GetImageFromArray(np.ascontiguousarray(mri_enhanced))
     itk_mri.SetSpacing(mri.GetSpacing())
-    itk.imwrite(itk_mri, output_dir+"T1_proj_enhanced.nii.gz")
+    itk.imwrite(itk_mri, result_dir+"T1_proj_enhanced.nii.gz")
+
+    mri_enhanced = mri_enhanced*mask_mri
+    itk_mri = itk.GetImageFromArray(np.ascontiguousarray(mri_enhanced))
+    itk_mri.SetSpacing(mri.GetSpacing())
+    itk.imwrite(itk_mri, result_dir+"T1_proj_enhanced_masked.nii.gz")
 
     itk_mri = itk.GetImageFromArray(np.ascontiguousarray(skeleton_MRI))
     itk_mri.SetSpacing(mri.GetSpacing())
-    itk.imwrite(itk_mri, output_dir+"T1_proj_skeleton.nii.gz")
+    itk.imwrite(itk_mri, result_dir+"T1_proj_skeleton.nii.gz")
 
-    itk_mri = itk.GetImageFromArray(np.ascontiguousarray(mask_erode))
+    itk_mri = itk.GetImageFromArray(np.ascontiguousarray(mask_mri))
     itk_mri.SetSpacing(mri.GetSpacing())
     itk.imwrite(itk_mri, filename_MRI_mask.split('.')[0] + "_erode.nii.gz")
 
 
     #Convert binary masks into signed distance image
-    skeleton = itk.imread(output_dir+"T1_proj_skeleton.nii.gz", itk.F)
+    skeleton = itk.imread(result_dir+"T1_proj_skeleton.nii.gz", itk.F)
     MRI_signed_distance_skeleton = getSignedDistanceMap(skeleton)
     MRI_signed_distance_skeleton = MultiplyFilter(MRI_signed_distance_skeleton, itk.imread(filename_MRI_mask, itk.F))
     # np_MRI_signed_distance_skeleton = itk.GetArrayFromImage(MRI_signed_distance_skeleton)
-    itk.imwrite(MRI_signed_distance_skeleton, output_dir +"MRI_signed_distance.nii.gz")
+    itk.imwrite(MRI_signed_distance_skeleton, result_dir +"MRI_signed_distance.nii.gz")
 
     return "Success"
 
-
-
-
-
 def main_get_vessels_in_optics(Mypath = Paths(), params=Params()):
 
-    print("In main_get_vessels_in_optics")
     main_path_otpics = Mypath.main_path_optics
-    output_dir = Mypath.output_dir
+
+    #Set output directory
+    result_dir = Mypath.output_BV_segmentation_dir
+    
+
+    #create results directory for optical threshold
+    result_dir = result_dir+ "Optics_thresh_"+str(params.thresh_optics)+"/"
+    if not os.path.exists(result_dir):
+        os.mkdir(result_dir)
+
     
     #################################
     ######## Optical imaging ########
     #################################
 
-    filename_MRI = output_dir+"Proj_MRI.nii.gz"
+    filename_MRI = Mypath.output_MRI_projection_dir+"Proj_MRI.nii.gz"
     filename_optics = main_path_otpics+"initial_img.png"
     filename_optics_mask = main_path_otpics+"mask.png"
     file_resolution_optics = main_path_otpics+"resolution.txt"
 
     if not os.path.exists(filename_optics):
-        return "Optical image is missing"
+        return "[main_get_vessels_in_optics] Optical image is missing"
 
     if not os.path.exists(filename_optics_mask):
-        return "Optical mask is missing"
+        return "[main_get_vessels_in_optics] Optical mask is missing"
 
     if not os.path.exists(file_resolution_optics):
-        return "Optical resolution file is missing"
+        return "[main_get_vessels_in_optics] Optical resolution file is missing"
     
     if not os.path.exists(filename_MRI):
-        return "MRI projection is missing"
+        return "[main_get_vessels_in_optics] MRI projection is missing"
     
 
     #Get resolution of MRI
@@ -1046,31 +1368,31 @@ def main_get_vessels_in_optics(Mypath = Paths(), params=Params()):
     #Check if initial image is RGB
     if img.ndim>2:
         img = img[:,:,2]
-        cv.imwrite(output_dir+"Optical_red_channel.png", img)
+        # cv.imwrite(result_dir+"Optical_red_channel.png", img)
 
-    img = img*mask
+    # img = img*mask
 
 
-    #Get mask of saturated pixels
-    mask_saturated_pixels = img>params.sat_val_optics
-    mask_saturated_pixels = (np.bitwise_not(mask_saturated_pixels)).astype(np.uint8)
-    ksize_mm = 1
-    ksize_px = int(ksize_mm/res_opt_in_mm)
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize_px,ksize_px))
-    mask_saturated_pixels = cv.morphologyEx(mask_saturated_pixels, op=cv.MORPH_ERODE, kernel=kernel)
-    mask_saturated_pixels = cv.morphologyEx(mask_saturated_pixels, op=cv.MORPH_OPEN, kernel=kernel)
+    # #Get mask of saturated pixels
+    # mask_saturated_pixels = img>params.sat_val_optics
+    # mask_saturated_pixels = (np.bitwise_not(mask_saturated_pixels)).astype(np.uint8)
+    # ksize_mm = 1
+    # ksize_px = int(ksize_mm/res_opt_in_mm)
+    # kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize_px,ksize_px))
+    # mask_saturated_pixels = cv.morphologyEx(mask_saturated_pixels, op=cv.MORPH_ERODE, kernel=kernel)
+    # mask_saturated_pixels = cv.morphologyEx(mask_saturated_pixels, op=cv.MORPH_OPEN, kernel=kernel)
 
 
 
     # Apply opening to remove specular reflection
-    ksize_mm = 0.1
+    ksize_mm = params.ksize_mm_kernal_specular_reflection_optics
     ksize_px = int(ksize_mm/res_opt_in_mm)
     if ksize_px >0:
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize_px,ksize_px))
         img = cv.morphologyEx(img, op=cv.MORPH_OPEN, kernel=kernel)
 
-    cv.imwrite(output_dir+"Optics_enhanced"+suffix_out_optics+".png",img)
-    itk_optics = itk.imread(output_dir+"Optics_enhanced"+suffix_out_optics+".png", itk.SS)
+    cv.imwrite(result_dir+"Optics_enhanced"+suffix_out_optics+".png",img)
+    itk_optics = itk.imread(result_dir+"Optics_enhanced"+suffix_out_optics+".png", itk.SS)
 
     #Enhance blood vessel
     optics_enhanced = enhance_Blood_vessel(itk_image = itk_optics,
@@ -1084,22 +1406,30 @@ def main_get_vessels_in_optics(Mypath = Paths(), params=Params()):
                                         Light_structures = False)
 
 
-    #erode mask
-    ksize_mm = 1
+    #erode mask to remove edge effects
+    ksize_mm = 0.5
     ksize_px = int(ksize_mm/res_opt_in_mm)
     if ksize_px>0:
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize_px,ksize_px))
-        mask_erode = cv.morphologyEx(mask, op=cv.MORPH_ERODE, kernel=kernel).astype(np.uint8)
-        optics_enhanced = optics_enhanced*mask_erode
 
+        #Erode mask to remove edge effects
+        mask = cv.morphologyEx(mask, op=cv.MORPH_ERODE, kernel=kernel).astype(np.uint8)
+        # mask_erode = cv.morphologyEx(mask, op=cv.MORPH_ERODE, kernel=kernel).astype(np.uint8)
+        # optics_enhanced = optics_enhanced*mask_erode
 
     #Apply mask of saturated pixel
-    optics_enhanced = optics_enhanced*mask_saturated_pixels
+    # optics_enhanced = optics_enhanced*mask_saturated_pixels
+    optics_enhanced = optics_enhanced * mask
+
+
+
+
+
 
 
     #Write images
     optics_enhanced_display = 255*(optics_enhanced - optics_enhanced.min())/(optics_enhanced.max()-optics_enhanced.min())
-    cv.imwrite(output_dir+"Optical_enhanced_full_res"+suffix_out_optics+".png",optics_enhanced_display.astype(np.uint8))
+    cv.imwrite(result_dir+"Optical_enhanced_full_res"+suffix_out_optics+".png",optics_enhanced_display.astype(np.uint8))
 
 
 
@@ -1119,7 +1449,7 @@ def main_get_vessels_in_optics(Mypath = Paths(), params=Params()):
 
     #Normalize data
     optics_enhanced = ((optics_enhanced - optics_enhanced.min())/(optics_enhanced.max() - optics_enhanced.min())*255).astype(np.uint8)
-    cv.imwrite(output_dir+"Optical_enhanced"+suffix_out_optics+".png",optics_enhanced)
+    cv.imwrite(result_dir+"Optical_enhanced"+suffix_out_optics+".png",optics_enhanced)
 
 
 
@@ -1148,21 +1478,49 @@ def main_get_vessels_in_optics(Mypath = Paths(), params=Params()):
         # plt.show(block=True)
     else:
         print("[main_get_vessels_in_optics] Thresholding process")
+        
+        
+        #Apply closing to fill blood vessel in Frangi
+        ksize_px = 5
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize_px,ksize_px))
+        optics_enhanced = cv.morphologyEx(optics_enhanced, op=cv.MORPH_CLOSE, kernel=kernel)
+    
+        
+        
+        
         #Binarisation
         th,optics_vessels = cv.threshold(np.copy(optics_enhanced), params.thresh_optics, 255, cv.THRESH_BINARY)
 
-        #Remove small blobs
-        contours, hierarchy = cv.findContours(np.copy(optics_vessels.astype(np.uint8)), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-        for i in range(len(contours)):
-            if cv.contourArea(contours[i]) < min_ara_pixels:
-                cv.drawContours(optics_vessels,contours,i,0,cv.FILLED)
+        # #Remove small blobs
+        # contours, hierarchy = cv.findContours(np.copy(optics_vessels.astype(np.uint8)), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        # for i in range(len(contours)):
+        #     if cv.contourArea(contours[i]) < min_ara_pixels:
+        #         cv.drawContours(optics_vessels,contours,i,0,cv.FILLED)
 
 
 
 
     #Create skeleton
-    skeleton_optics = cv.ximgproc.thinning(optics_vessels.astype(np.uint8))
-    cv.imwrite(output_dir+"Optical_skeleton"+suffix_out_optics+".png",skeleton_optics)
+    skeleton_optics_tmp = cv.ximgproc.thinning(optics_vessels.astype(np.uint8))
+
+    
+
+
+
+    #Get skeleton components and remove small ones 
+    skeleton_optics = np.zeros(skeleton_optics_tmp.shape,dtype=skeleton_optics_tmp.dtype)
+    num_labels, labels = cv.connectedComponents(skeleton_optics_tmp)
+
+    for i in range(1, num_labels): #skip background
+        #get component coordinates
+        coords = np.column_stack(np.where(labels == i))
+
+        #Remove components having less than 10 pixels
+        if len(coords)>10:
+            skeleton_optics[coords[:, 0], coords[:, 1]] = 255
+
+
+    cv.imwrite(result_dir+"Total_Optical_skeleton"+suffix_out_optics+".png",skeleton_optics)
 
     #resize skeleton
     skeleton_optics = cv.resize(skeleton_optics, (optics_enhanced.shape[1],optics_enhanced.shape[0]),interpolation=cv.INTER_NEAREST)
@@ -1175,39 +1533,44 @@ def main_get_vessels_in_optics(Mypath = Paths(), params=Params()):
     #Write images
     optics_vol = itk.GetImageFromArray(np.ascontiguousarray(mask))
     optics_vol.SetSpacing(optics_spacing)
-    itk.imwrite(optics_vol, output_dir+"optics_mask"+suffix_out_optics+".nii.gz")
+    itk.imwrite(optics_vol, result_dir+"optics_mask"+suffix_out_optics+".nii.gz")
 
     optics_vol = itk.GetImageFromArray(np.ascontiguousarray(optics_vessels))
     optics_vol.SetSpacing(optics_spacing)
-    itk.imwrite(optics_vol, output_dir+"optics_mask_large_vessels"+suffix_out_optics+".nii.gz")
+    itk.imwrite(optics_vol, result_dir+"optics_mask_large_vessels"+suffix_out_optics+".nii.gz")
 
     optics_vol = itk.GetImageFromArray(np.ascontiguousarray(optics_enhanced))
     optics_vol.SetSpacing(optics_spacing)
-    itk.imwrite(optics_vol, output_dir+"optics_enhanced"+suffix_out_optics+".nii.gz")
+    itk.imwrite(optics_vol, result_dir+"optics_enhanced"+suffix_out_optics+".nii.gz")
 
     optics_vol = itk.GetImageFromArray(np.ascontiguousarray(skeleton_optics))
     optics_vol.SetSpacing(optics_spacing)
-    itk.imwrite(optics_vol, output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz")
+    itk.imwrite(optics_vol, result_dir+"optics_skeleton"+suffix_out_optics+".nii.gz")
 
 
     #Convert binary masks into signed distance image
-    skeleton = itk.imread(output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz", itk.F)
+    skeleton = itk.imread(result_dir+"optics_skeleton"+suffix_out_optics+".nii.gz", itk.F)
     optics_signed_distance_skeleton = getSignedDistanceMap(skeleton)
-    optics_signed_distance_skeleton = MultiplyFilter(optics_signed_distance_skeleton, itk.imread(output_dir+"optics_mask"+suffix_out_optics+".nii.gz", itk.F))
-    itk.imwrite(optics_signed_distance_skeleton, output_dir +"optics_signed_distance"+suffix_out_optics+".nii.gz")
+    optics_signed_distance_skeleton = MultiplyFilter(optics_signed_distance_skeleton, itk.imread(result_dir+"optics_mask"+suffix_out_optics+".nii.gz", itk.F))
+    itk.imwrite(optics_signed_distance_skeleton, result_dir +"optics_signed_distance"+suffix_out_optics+".nii.gz")
     # np_optics_signed_distance_skeleton = itk.GetArrayFromImage(optics_signed_distance_skeleton)
 
     print("end")
     return "Success"
 
-def main_plot_vessel_skeletons(Mypath = Paths()):
+def main_plot_vessel_skeletons(Mypath = Paths(), params = Params()):
    
     #Get skeleton images
-    status, mri_skeleton_display, optics_skeleton_display = main_get_skeleton_images(Mypath)
+    status, mri_skeleton_display, optics_skeleton_display = main_get_skeleton_images(Mypath,params)
     
+
     if status != "Success":
         return status, None
     
+    print(status)
+    print(mri_skeleton_display.shape)
+    print(optics_skeleton_display.shape)
+
 
     # Get the maximum shape for both images
     max_shape = (np.maximum(mri_skeleton_display.shape[0],optics_skeleton_display.shape[0]), np.maximum(mri_skeleton_display.shape[1],optics_skeleton_display.shape[1]))
@@ -1228,29 +1591,67 @@ def main_plot_vessel_skeletons(Mypath = Paths()):
     return "Success", display.astype(np.uint8)
 
 
-def main_get_skeleton_images(Mypath = Paths()):
+
+
+def main_plot_Frangi_images(Mypath = Paths(), params = Params()):
+   
+    #Get skeleton images
+    status, mri_Frangi, optics_Frangi = main_get_Frangi_images(Mypath,params)
+    
+
+    if status != "Success":
+        return status, None
+    
+    print(status)
+    print(mri_Frangi.shape)
+    print(optics_Frangi.shape)
+
+
+    # Get the maximum shape for both images
+    max_shape = (np.maximum(mri_Frangi.shape[0],optics_Frangi.shape[0]), np.maximum(mri_Frangi.shape[1],optics_Frangi.shape[1]))
+    display = np.zeros((max_shape[0],2*max_shape[1],3))
+
+    display[:,0:max_shape[1]] = cv.resize(mri_Frangi,(max_shape[1],max_shape[0]))
+    display[:,max_shape[1]:] = cv.resize(optics_Frangi,(max_shape[1],max_shape[0]))
+    
+                                        
+
+    # plt.figure(figsize=(20,20))
+    # plt.subplot(121)
+    # plt.imshow(mri_Frangi,cmap='gray')
+    # plt.subplot(122)
+    # plt.imshow(optics_Frangi,cmap='gray')
+    # plt.show()
+
+    return "Success", display.astype(np.uint8)
+
+
+def main_get_skeleton_images(Mypath = Paths(), params = Params()):
+    
     main_path_otpics = Mypath.main_path_optics
-    output_dir = Mypath.output_dir
+    MRI_proj_dir = Mypath.output_MRI_projection_dir
+    BV_segmentation_dir = Mypath.output_BV_segmentation_dir
+
 
     filename_optics = main_path_otpics+"initial_img.png"
 
     if not os.path.exists(filename_optics):
-        return "Optical initial image is missing",None, None
+        return "[main_get_skeleton_images] Optical initial image is missing",None, None
 
     _,suffix_out_optics = is_RGB_optical_image(filename_optics)
 
-    filename_MRI_skeleton = output_dir+"T1_proj_skeleton.nii.gz"
-    filename_MRI_proj = output_dir+"MRI_projection.png"
-    filename_optics_skeleton = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
+    filename_MRI_skeleton = BV_segmentation_dir+"T1_proj_skeleton.nii.gz"
+    filename_MRI_proj = MRI_proj_dir+"Proj_MRI.nii.gz"
+    filename_optics_skeleton = BV_segmentation_dir+"Optics_thresh_"+str(params.thresh_optics)+"/optics_skeleton"+suffix_out_optics+".nii.gz"
 
 
 
     if not os.path.exists(filename_MRI_skeleton):
-        return "MRI skeleton file is missing",None,None
+        return "[main_get_skeleton_images] MRI skeleton file is missing",None,None
     if not os.path.exists(filename_MRI_proj):
-        return "MRI proj file is missing",None,None
+        return "[main_get_skeleton_images] MRI proj file is missing",None,None
     if not os.path.exists(filename_optics_skeleton):
-        return "Optics skeleton file is missing",None,None
+        return "[main_get_skeleton_images] Optics skeleton file is missing",None,None
 
 
 
@@ -1264,7 +1665,11 @@ def main_get_skeleton_images(Mypath = Paths()):
     itk_mri = itk.imread(filename_MRI_skeleton, itk.F)
     skeleton_MRI = itk.GetArrayFromImage(itk_mri)
 
-    mri_proj = cv.imread(filename_MRI_proj)
+    itk_mri_proj = itk.imread(filename_MRI_proj, itk.F)
+    mri_proj = itk.GetArrayFromImage(itk_mri_proj)
+    mri_proj = 255*(mri_proj-mri_proj.min())/(mri_proj.max() - mri_proj.min())
+    mri_proj = mri_proj.astype(np.uint8)
+    mri_proj = cv.cvtColor(mri_proj,cv.COLOR_GRAY2BGR)
 
 
     ################# Display ###########################
@@ -1275,7 +1680,6 @@ def main_get_skeleton_images(Mypath = Paths()):
     mri_skeleton_display = np.zeros(mri_proj.shape)
     mri_skeleton_display[:,:,1] = 255*skeleton_MRI
     mri_skeleton_display = mri_skeleton_display.astype(np.uint8)
-
 
     mri_display = merge_two_colored_img(mri_proj, mri_skeleton_display, skeleton_MRI, alpha)
 
@@ -1304,11 +1708,67 @@ def main_get_skeleton_images(Mypath = Paths()):
 
 
 
+
+def main_get_Frangi_images(Mypath = Paths(), params = Params()):
+    
+    main_path_otpics = Mypath.main_path_optics
+    BV_segmentation_dir = Mypath.output_BV_segmentation_dir
+
+
+    filename_in_optics = main_path_otpics+"initial_img.png"
+
+    if not os.path.exists(filename_in_optics):
+        return "[main_get_Frangi_images] Optical initial image is missing",None, None
+
+    _,suffix_out_optics = is_RGB_optical_image(filename_in_optics)
+
+    filename_MRI = BV_segmentation_dir+"T1_proj_enhanced_masked.nii.gz"
+    filename_optics = BV_segmentation_dir+"Optics_thresh_"+str(params.thresh_optics)+"/optics_enhanced"+suffix_out_optics+".nii.gz"
+
+    if not os.path.exists(filename_MRI):
+        return "[main_get_Frangi_images] MRI Frangi image is missing",None,None
+    if not os.path.exists(filename_optics):
+        return "[main_get_Frangi_images] Optics Frangi image is missing",None,None
+
+
+
+    itk_optics = itk.imread(filename_optics, itk.F)
+    np_optics = itk.GetArrayFromImage(itk_optics)
+    np_optics = 255*(np_optics-np_optics.min())/(np_optics.max() - np_optics.min())
+    np_optics = np_optics.astype(np.uint8)
+    np_optics = cv.cvtColor(np_optics,cv.COLOR_GRAY2BGR)
+
+    itk_mri = itk.imread(filename_MRI, itk.F)
+    np_mri = itk.GetArrayFromImage(itk_mri)
+    np_mri = 255*(np_mri-np_mri.min())/(np_mri.max() - np_mri.min())
+    np_mri = np_mri.astype(np.uint8)
+    np_mri = cv.cvtColor(np_mri,cv.COLOR_GRAY2BGR)
+    
+    
+    
+
+
+    ################# Display ###########################
+
+
+
+    #Draw tumor contour
+    status, np_mri = main_draw_tumor_contour_on_projection(Mypath, np_mri)
+
+    if status != "Success":
+        return status, None, None
+    
+    #Convert in BGR
+    np_mri = cv.cvtColor(np_mri.astype(np.uint8),cv.COLOR_BGR2RGB)
+
+
+    return "Success", np_mri, np_optics
+
 def main_plot_Optics_MRI_alignement_points(Mypath = Paths(), params=Params()):
 
     main_path_optics = Mypath.main_path_optics
     output_dir = Mypath.output_dir
-
+    result_dir = Mypath.output_registration_dir
 
     if not os.path.exists(main_path_optics+"initial_img.png"):
         return "Optical initial image is missing", None
@@ -1326,8 +1786,8 @@ def main_plot_Optics_MRI_alignement_points(Mypath = Paths(), params=Params()):
 
     #Load volumes
     filename_MRI = output_dir+"T1_proj_skeleton.nii.gz"
-    filename_optics = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
-    filename_mask_otpics = output_dir+"optics_mask"+suffix_out_optics+".nii.gz"
+    filename_optics = result_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
+    filename_mask_otpics = result_dir+"optics_mask"+suffix_out_optics+".nii.gz"
     filename_tumor = output_dir+"Mask_Proj_Tumor.nii.gz"
 
 
@@ -1365,7 +1825,7 @@ def main_plot_Optics_MRI_alignement_points(Mypath = Paths(), params=Params()):
     kpts_MRI_tumor_phys = _kpts_MRI_tumor_phys
 
     #Get colored skeletons
-    status, np_MRI_projection, np_Optics_img = main_get_skeleton_images(Mypath)
+    status, np_MRI_projection, np_Optics_img = main_get_skeleton_images(Mypath,params)
     if status != "Success":
         return status, None
     
@@ -1394,29 +1854,235 @@ def main_plot_Optics_MRI_alignement_points(Mypath = Paths(), params=Params()):
     return "Success", display.astype(np.uint8)
     
 
+def get_registration_result_dir(Mypath = Paths(), params=Params(), create_dir = False, id_kp = -1):
+    
+    
+    #Create registration result directory
+    result_dir = Mypath.output_registration_dir
+    
+    if params.registration_type == "Multi metric":
+        result_dir += "Mutli_metric_image/"
+    
+    if params.registration_type == "Skeleton":
+        result_dir += "Skeleton/"
+    
+    if params.registration_type == "Frangi":
+        result_dir += "Frangi_images/"
+
+    if create_dir:
+        if not os.path.exists(result_dir):
+            os.mkdir(result_dir)
+        
+    
+    result_dir += "Optics_thresh_"+str(params.thresh_optics)+"/"
+    
+    if create_dir:
+        if not os.path.exists(result_dir):
+            os.mkdir(result_dir)
+
+    if id_kp != -1:
+        result_dir += str(id_kp)+"/"
+        if create_dir:
+            if not os.path.exists(result_dir):
+                os.mkdir(result_dir)
+       
+    return result_dir
+
+
+
+
+def process_Optics_to_MRI_registration_1Kpt(result_dir, suffix_out_optics,
+                                            kp_MRI_phys, kp_Optics_phys, kp_Optics,
+                                            parameter_filename, angles,
+                                            Mypath = Paths(), params = Params()):
+
+
+    BV_segmentation_dir = Mypath.output_BV_segmentation_dir
+    Optics_BV_segmentation_dir = BV_segmentation_dir+"Optics_thresh_"+str(params.thresh_optics)+"/"
+    MRI_projection_dir = Mypath.output_MRI_projection_dir
+
+    #Image filenames
+    filename_MRI_Frangi = BV_segmentation_dir+"T1_proj_enhanced.nii.gz"
+    filename_MRI_Frangi_masked = BV_segmentation_dir+"T1_proj_enhanced_masked.nii.gz"
+    filename_optics_Frangi =Optics_BV_segmentation_dir +"optics_enhanced"+suffix_out_optics+".nii.gz"
+
+    filename_MRI_skeleton = BV_segmentation_dir+"T1_proj_skeleton.nii.gz"
+    filename_optics_skeleton = Optics_BV_segmentation_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
+
+    filename_optics_signed_distance = Optics_BV_segmentation_dir +"optics_signed_distance"+suffix_out_optics+".nii.gz"
+    filename_MRI_signed_distance = BV_segmentation_dir +"MRI_signed_distance.nii.gz"
+
+    #if params.mask_MRI_hemisphere:
+    #    prefix = "Hemisphere_"
+    #else:
+    #    prefix = ""
+    #filename_mask_MRI = MRI_projection_dir+prefix+"Mask_Proj_MRI.nii.gz"
+    filename_mask_MRI = MRI_projection_dir+"Mask_Proj_MRI_around_tumor.nii.gz"
+    filename_mask_optics = Optics_BV_segmentation_dir+"optics_mask"+suffix_out_optics+".nii.gz"
+
+
+    # kp_MRI_phys = kpts_MRI_tumor_phys[id_kp_MRI]
+    # kp_MRI = kpts_MRI_tumor[id_kp_MRI]
+
+
+    #Change origin of optics slice to match keypoint
+    change_origin(filenames_MRI= [filename_MRI_skeleton, filename_mask_MRI, filename_MRI_signed_distance, filename_MRI_Frangi, filename_MRI_Frangi_masked],
+                filenames_optics= [filename_optics_skeleton, filename_optics_signed_distance, filename_optics_Frangi],
+                kpt_Optics= kp_Optics_phys,
+                kpt_MRI= kp_MRI_phys)
+
+
+    #In the parameter file, change the center of rotation (set origin of optics image)
+    replace_line_in_file(file_path=parameter_filename,
+                        key='(CenterOfRotationPoint',
+                        new_string="(CenterOfRotationPoint "+str(kp_MRI_phys[0])+" "+str(kp_MRI_phys[1])+")"+'\n')
+
+
+
+    #Image filenamess with origin changed
+    filename_MRI_skeleton = filename_MRI_skeleton.split('.')[0]+"_origin_changed.nii.gz"
+    filename_mask_MRI = filename_mask_MRI.split('.')[0]+"_origin_changed.nii.gz"
+    filename_MRI_signed_distance = filename_MRI_signed_distance.split('.')[0]+"_origin_changed.nii.gz"
+    filename_MRI_Frangi_masked = filename_MRI_Frangi_masked.split('.')[0]+"_origin_changed.nii.gz"
+
+    filename_optics_skeleton = filename_optics_skeleton.split('.')[0]+"_origin_changed.nii.gz"
+    filename_optics_signed_distance = filename_optics_signed_distance.split('.')[0]+"_origin_changed.nii.gz"
+    filename_optics_Frangi = filename_optics_Frangi.split('.')[0]+"_origin_changed.nii.gz"
+
+    MRI_proj_skeleton = itk.imread(filename_MRI_skeleton,itk.F)
+    Optics_img_skeleton = itk.imread(filename_optics_skeleton,itk.F)
+
+    MRI_proj_Frangi = itk.imread(filename_MRI_Frangi_masked,itk.F)
+    Optics_img_Frangi = itk.imread(filename_optics_Frangi,itk.F)
+    
+    mask_MRI = itk.imread(filename_mask_MRI,itk.UC)
+    np_mask_MRI = itk.GetArrayFromImage(mask_MRI)
+
+    mask_optics = itk.imread(filename_mask_optics)
+    np_mask_optics = itk.GetArrayFromImage(mask_optics)
+
+    Optics_signed_distance = itk.imread(filename_optics_signed_distance,itk.F)
+    MRI_signed_distance = itk.imread(filename_MRI_signed_distance,itk.F)
+
+
+    #Get resolution
+    res_mri_in_mm = np.min(MRI_proj_skeleton.GetSpacing())
+    res_opt_in_mm = float(np.loadtxt(Mypath.main_path_optics+"resolution.txt"))
+
+
+    metric = []
+    custom_metric = []
+
+    for angle in angles:
+
+        #rotate image
+        rotated_optics_skeleton = optics_itk_rotation_2D(angle, Optics_img_skeleton, MRI_proj_skeleton, kp_Optics, kp_MRI_phys)
+        rotated_optics_signed_distance = optics_itk_rotation_2D(angle, Optics_signed_distance, MRI_proj_skeleton, kp_Optics, kp_MRI_phys)
+        rotated_optics_Frangi = optics_itk_rotation_2D(angle, Optics_img_Frangi, MRI_proj_skeleton, kp_Optics, kp_MRI_phys)
+
+
+        #Apply registration
+        if params.registration_type == "Multi metric":
+            registered_vol, params_transform = optics_to_MRI_slices_registration_multi_metric_multi_images(fixed_skeleton = MRI_proj_skeleton,
+                                                                                                    fixed_signed_distance = MRI_signed_distance,
+                                                                                                    moving_skeleton=rotated_optics_skeleton,
+                                                                                                    moving_signed_distance=rotated_optics_signed_distance,
+                                                                                                    fixed_mask=mask_MRI,
+                                                                                                    output_log_dir=result_dir,
+                                                                                                    parameter_file=parameter_filename,
+                                                                                                    output_filename="registration_out"+suffix_out_optics+".txt",
+                                                                                                    log_to_console= False)
+
+        if params.registration_type == "Skeleton":
+            registered_vol, params_transform = optics_to_MRI_slices_registration(fixed_img = MRI_proj_skeleton,
+                                                                                moving_img = rotated_optics_skeleton,
+                                                                                fixed_mask = mask_MRI,
+                                                                                output_log_dir=result_dir,
+                                                                                output_filename="registration_out"+suffix_out_optics+".txt",
+                                                                                log_to_console= False)
+            
+        if params.registration_type == "Frangi":
+            registered_vol, params_transform = optics_to_MRI_slices_registration(fixed_img = MRI_proj_Frangi,
+                                                                                moving_img = rotated_optics_Frangi,
+                                                                                fixed_mask = mask_MRI,
+                                                                                output_log_dir=result_dir,
+                                                                                output_filename="registration_out"+suffix_out_optics+".txt",
+                                                                                log_to_console= False)
+                            
+        
+        if registered_vol !=None and params_transform != None:
+            
+            
+            NCC_skeletons = itk_metric_value_fixed_space(itk.NormalizedCorrelationImageToImageMetric, MRI_proj_skeleton,  registered_vol)
+
+            #Apply transform to optical mask
+            mask_reg = Project_Optical_img_on_MRI_projection(np_mask_optics,
+                                                                    np_mask_optics,
+                                                                    angle,
+                                                                    MRI_proj_skeleton.GetSpacing(),
+                                                                    res_mri_in_mm,
+                                                                    res_opt_in_mm,
+                                                                    kp_Optics,
+                                                                    kp_MRI_phys,
+                                                                    params_transform,
+                                                                    params.use_upscaled_images).astype(np.uint8)
+            
+            #Dilate masg reg
+            mask_reg[mask_reg>0] =255
+            mask_reg = mask_reg.astype(np.uint8)
+            ksize=3
+            kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize,ksize))
+            mask_reg = cv.morphologyEx(mask_reg, op=cv.MORPH_DILATE, kernel=kernel)
+
+            #Calculate mask overlap
+            overlap_mask_mri_optics_reg = overlap_coefficient(np_mask_MRI,mask_reg)
+
+            #Add two metrics NCC + (1-overlap)
+            custom_metric.append(NCC_skeletons + (1-overlap_mask_mri_optics_reg))
+            metric.append(get_final_registration_metrics(result_dir + "/registration_out"+suffix_out_optics+".txt", "Final metric value"))
+        
+        else:
+            custom_metric.append(np.nan)
+            metric.append(np.nan)
+
+    return metric, custom_metric, registered_vol, params_transform
 
 def main_Optics_to_MRI_registration(Mypath = Paths(), params=Params()):
 
+    #get skeleton vessel in MRI
+    error = main_get_vessels_in_MRI(Mypath, params)
+    if error != "Success":
+        return error
+    
+    error = main_get_vessels_in_optics(Mypath, params)
+    if error != "Success":
+        return error
+    
+
+
+    #Set path
     main_path_optics = Mypath.main_path_optics
-    output_dir = Mypath.output_dir
+    MRI_projection_dir = Mypath.output_MRI_projection_dir
+    BV_segmentation_dir = Mypath.output_BV_segmentation_dir
+    Optics_BV_segmentation_dir = BV_segmentation_dir+"Optics_thresh_"+str(params.thresh_optics)+"/"
 
 
-    if not os.path.exists(main_path_optics+"initial_img.png"):
-        return "Optical initial image is missing"
-
-    if params.multi_metric_multi_images:
-        result_dir = output_dir+"Rotation_mutli_metric_image"
+    # Load registration parameter file
+    if params.registration_type == "Multi metric":
         # parameter_filename = '../data/parameters_Similarity_slice_fixed_rotation_multi_metric_image.txt'
         parameter_filename = '../data/parameters_Similarity_slice_fixed_rotation.txt'
-    else:
 
-        result_dir = output_dir+"Rotation"
+    if params.registration_type == "Skeleton":
         parameter_filename = '../data/parameters_Similarity_slice_fixed_rotation.txt'
+
+    if params.registration_type == "Frangi":
+        parameter_filename = '../data/parameters_Similarity_slice_fixed_rotation_Mutual_Information.txt'
+
 
     #Load initial optical image
     filename_initial_img_optics = main_path_optics+"initial_img.png"
     if not os.path.exists(filename_initial_img_optics):
-        return "Optical initial image is missing"
+        return "[main_Optics_to_MRI_registration] Optical initial image is missing"
 
     #Check if optical imaging is RGB or HSI
     _,suffix_out_optics = is_RGB_optical_image(filename_initial_img_optics)
@@ -1424,47 +2090,49 @@ def main_Optics_to_MRI_registration(Mypath = Paths(), params=Params()):
 
 
     #Load volumes
-    filename_MRI = output_dir+"T1_proj_skeleton.nii.gz"
-    filename_mask_MRI = output_dir+"Mask_Proj_MRI.nii.gz"
-    filename_MRI_signed_distance = output_dir +"MRI_signed_distance.nii.gz"
+    filename_MRI = BV_segmentation_dir+"T1_proj_skeleton.nii.gz"
+    prefix = ""
+    if params.mask_MRI_hemisphere:
+        prefix = "Hemisphere_"
+       
+    #filename_mask_MRI = MRI_projection_dir+prefix+"Mask_Proj_MRI.nii.gz"
+    filename_mask_MRI = Mypath.output_MRI_projection_dir+"Mask_Proj_MRI_around_tumor.nii.gz"
 
-    filename_optics = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
-    filename_mask_otpics = output_dir+"optics_mask"+suffix_out_optics+".nii.gz"
-    filename_optics_signed_distance = output_dir +"optics_signed_distance"+suffix_out_optics+".nii.gz"
+    filename_MRI_signed_distance = BV_segmentation_dir +"MRI_signed_distance.nii.gz"
 
-    filename_tumor = output_dir+"Mask_Proj_Tumor.nii.gz"
+    filename_optics = Optics_BV_segmentation_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
+    filename_mask_otpics = Optics_BV_segmentation_dir+"optics_mask"+suffix_out_optics+".nii.gz"
+    filename_optics_signed_distance = Optics_BV_segmentation_dir +"optics_signed_distance"+suffix_out_optics+".nii.gz"
 
-
+    filename_tumor = MRI_projection_dir+"Mask_Proj_Tumor.nii.gz"
 
 
     if not os.path.exists(filename_MRI):
-        return (os.path.basename(filename_MRI)+ " is missing")
+        return ("[main_Optics_to_MRI_registration] MRI skeleton is missing")
 
     if not os.path.exists(filename_optics):
-        return (os.path.basename(filename_optics)+ " is missing")
+        return ("[main_Optics_to_MRI_registration] Optics skeleton is missing")
 
     if not os.path.exists(filename_tumor):
-        return (os.path.basename(filename_tumor)+ " is missing")
+        return ("[main_Optics_to_MRI_registration] Mask tumor proj is missing")
 
     if not os.path.exists(filename_mask_MRI):
-        return (os.path.basename(filename_mask_MRI)+ " is missing")
+        return ("[main_Optics_to_MRI_registration] mask proj MRI is missing")
 
     if not os.path.exists(filename_mask_otpics):
-        return (os.path.basename(filename_mask_otpics)+ " is missing")
+        return ("[main_Optics_to_MRI_registration] Optics mask is missing")
 
     if not os.path.exists(filename_MRI_signed_distance):
-        return (os.path.basename(filename_MRI_signed_distance)+ " is missing")
+        return ("[main_Optics_to_MRI_registration] MRI signed distance is missing")
 
     if not os.path.exists(filename_optics_signed_distance):
-        return (os.path.basename(filename_optics_signed_distance)+ " is missing")
+        return ("[main_Optics_to_MRI_registration] Optics signed distance is missing")
 
     if not os.path.exists(parameter_filename):
-        return (os.path.basename(parameter_filename)+ " is missing")
+        return ("[main_Optics_to_MRI_registration] Parameter file is missing")
 
 
-    #Create temp folder
-    if not os.path.exists(result_dir):
-        os.mkdir(result_dir)
+    
 
     # Load itk volumes
     MRI_proj = itk.imread(filename_MRI,itk.UC)
@@ -1476,10 +2144,13 @@ def main_Optics_to_MRI_registration(Mypath = Paths(), params=Params()):
 
 
     #Get center of mass of tumor and optical mask
-    kp_Optics, kp_Optics_phys, _kpts_MRI_tumor, _kpts_MRI_tumor_phys = get_alignment_points(Optical_mask, Optics_img,
-                                                                                            MRI_proj, mask_tumor, 
-                                                                                            params.kpts_MRI_tumor, params.kpt_optics,
-                                                                                            params.touch_vessel)
+    # kp_Optics, kp_Optics_phys, _kpts_MRI_tumor, _kpts_MRI_tumor_phys = get_alignment_points(Optical_mask, Optics_img,
+    #                                                                                         MRI_proj, mask_tumor, 
+    #                                                                                         params.kpts_MRI_tumor, params.kpt_optics,
+    #                                                                                         params.touch_vessel)
+
+    #Get alignement points in skeleton
+    kp_Optics, kp_Optics_phys, _kpts_MRI_tumor, _kpts_MRI_tumor_phys = get_alignement_points_in_skeleton(MRI_proj, Optics_img, Optical_mask, mask_tumor, 3)
 
     kpts_MRI_tumor = _kpts_MRI_tumor
     kpts_MRI_tumor_phys = _kpts_MRI_tumor_phys
@@ -1502,206 +2173,69 @@ def main_Optics_to_MRI_registration(Mypath = Paths(), params=Params()):
     # plt.show()
 
 
-    output_metric = []
     angles = np.arange(0,360)
 
 
 
-
+    #Loop over keypoints
     for id_kp_MRI in range(len(kpts_MRI_tumor_phys)):
-        print(id_kp_MRI)
-        #set filename
-        filename_MRI = output_dir+"T1_proj_skeleton.nii.gz"
-        filename_optics = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
+  
+        #Create registration result directory
+        result_dir = get_registration_result_dir(Mypath, params, create_dir = True, id_kp=id_kp_MRI)
 
-        filename_optics_signed_distance = output_dir +"optics_signed_distance"+suffix_out_optics+".nii.gz"
-        filename_MRI_signed_distance = output_dir +"MRI_signed_distance.nii.gz"
-
-        filename_tumor = output_dir+"Mask_Proj_Tumor.nii.gz"
-        filename_mask_MRI = output_dir+"Mask_Proj_MRI.nii.gz"
-        filename_mask_otpics = output_dir+"optics_mask"+suffix_out_optics+".nii.gz"
-
-
+    
+        #Select MRI keypoint
         kp_MRI_phys = kpts_MRI_tumor_phys[id_kp_MRI]
         kp_MRI = kpts_MRI_tumor[id_kp_MRI]
 
+        metric, custom_metric, _, _ = process_Optics_to_MRI_registration_1Kpt(result_dir, suffix_out_optics,
+                                            kp_MRI_phys, kp_Optics_phys, kp_Optics,
+                                            parameter_filename, angles, Mypath, params)
 
-        #Change origin of optics slice to match keypoint
-        change_origin(filenames_MRI= [filename_MRI, filename_mask_MRI, filename_MRI_signed_distance],
-                    filenames_optics= [filename_optics, filename_mask_otpics, filename_optics_signed_distance],
-                    kpt_Optics= kp_Optics_phys,
-                    kpt_MRI= kp_MRI_phys)
-
-
-        #In the parameter file, change the center of rotation (set origin of optics image)
-        replace_line_in_file(file_path=parameter_filename,
-                            key='(CenterOfRotationPoint',
-                            new_string="(CenterOfRotationPoint "+str(kp_MRI_phys[0])+" "+str(kp_MRI_phys[1])+")"+'\n')
+        #save registration metric
+        np.savetxt(result_dir +"/metrics"+suffix_out_optics+".txt",metric)
+        np.savetxt(result_dir +"/custom_metrics"+suffix_out_optics+".txt",custom_metric)
 
 
 
-        #Load volumes with origin changed
-        filename_MRI = filename_MRI.split('.')[0]+"_origin_changed.nii.gz"
-        filename_mask_MRI = filename_mask_MRI.split('.')[0]+"_origin_changed.nii.gz"
-        filename_MRI_signed_distance = filename_MRI_signed_distance.split('.')[0]+"_origin_changed.nii.gz"
+        #Get best match
+        best_angle = np.nanargmin(metric)
+        best_angle_custom_metric = np.nanargmin(custom_metric)
 
-        filename_optics = filename_optics.split('.')[0]+"_origin_changed.nii.gz"
-        filename_mask_otpics = filename_mask_otpics.split('.')[0]+"_origin_changed.nii.gz"
-        filename_optics_signed_distance = filename_optics_signed_distance.split('.')[0]+"_origin_changed.nii.gz"
+        _, _, registered_vol, params_transform = process_Optics_to_MRI_registration_1Kpt(result_dir, suffix_out_optics,
+                                                kp_MRI_phys, kp_Optics_phys, kp_Optics,
+                                                parameter_filename, np.array([best_angle]), Mypath, params)
+
+        _, _, registered_vol_custom_metric, params_transform_custom_metric = process_Optics_to_MRI_registration_1Kpt(result_dir, suffix_out_optics,
+                                                kp_MRI_phys, kp_Optics_phys, kp_Optics,
+                                                parameter_filename, np.array([best_angle_custom_metric]), Mypath, params)
 
 
-        MRI_proj = itk.imread(filename_MRI,itk.F)
-        Optics_img = itk.imread(filename_optics,itk.F)
+
+        #Write registered skeleton
+        filename_reg = result_dir +"/registered_proj_" + str(best_angle) +suffix_out_optics+".nii.gz"
+        itk.imwrite(registered_vol,filename_reg)
+        itk.elxParameterObjectPython.elastixParameterObject_WriteParameterFile(params_transform,result_dir + "/Registration_params"+suffix_out_optics+".txt") 
+
+        #Write registered skeleton (custom metric)
+        filename_reg = result_dir +"/registered_proj_custom_metric_" + str(best_angle_custom_metric) +suffix_out_optics+".nii.gz"
+        itk.imwrite(registered_vol_custom_metric,filename_reg)
+        itk.elxParameterObjectPython.elastixParameterObject_WriteParameterFile(params_transform_custom_metric,result_dir + "/Registration_params_custom_metric"+suffix_out_optics+".txt") 
+
+        #Write registration params     
+        reg_params = Registration_Params()
+        reg_params.angle = int(best_angle)
+        reg_params.angle_custom_metric = int(best_angle_custom_metric)
         
-        Optical_mask=  itk.imread(filename_mask_otpics,itk.UC)
-        mask_MRI = itk.imread(filename_mask_MRI,itk.UC)
-
-        Optics_signed_distance = itk.imread(filename_optics_signed_distance,itk.F)
-        MRI_signed_distance = itk.imread(filename_MRI_signed_distance,itk.F)
-
-
-        metric = []
-
-        for angle in angles:
-
-            #rotate image
-            rotated_optics = optics_itk_rotation_2D(angle, Optics_img, MRI_proj, kp_Optics, kp_MRI_phys)
-            rotated_optics_signed_distance = optics_itk_rotation_2D(angle, Optics_signed_distance, MRI_proj, kp_Optics, kp_MRI_phys)
-
-
-            #Apply registration
-            if params.multi_metric_multi_images:
-
-                registered_vol, params_transform = optics_to_MRI_slices_registration_multi_metric_multi_images(fixed_skeleton = MRI_proj,
-                                                                                                        fixed_signed_distance = MRI_signed_distance,
-                                                                                                        moving_skeleton=rotated_optics,
-                                                                                                        moving_signed_distance=rotated_optics_signed_distance,
-                                                                                                        fixed_mask=mask_MRI,
-                                                                                                        output_log_dir=result_dir,
-                                                                                                        parameter_file=parameter_filename,
-                                                                                                        output_filename="registration_out"+suffix_out_optics+".txt",
-                                                                                                        log_to_console= False)
-
-            else:
-                
-                registered_vol, params_transform = optics_to_MRI_slices_registration(fixed_img = MRI_proj,
-                                                                                    moving_img = rotated_optics,
-                                                                                    fixed_mask = mask_MRI,
-                                                                                    output_log_dir=result_dir,
-                                                                                    output_filename="registration_out"+suffix_out_optics+".txt",
-                                                                                    log_to_console= False)
-                                
-
-            
-            if registered_vol !=None and params_transform != None:
-                metric.append(get_final_registration_metrics(result_dir + "/registration_out"+suffix_out_optics+".txt", "Final metric value"))
-            
-            else:
-                metric.append(np.nan)
+        reg_params.MRI_kpt = [int(kp_MRI[0]),int(kp_MRI[1])]
+        reg_params.MRI_kpt_phys = [float(kp_MRI_phys[0]), float(kp_MRI_phys[1])]
+        reg_params.Optics_kpt = [int(kp_Optics[0]),int(kp_Optics[1])]
+        reg_params.Optics_kpt_phys = [float(kp_Optics_phys[0]),float(kp_Optics_phys[1])]
         
-        output_metric.append(metric)
-
-
-
-
-    #save and display metric
-    np.savetxt(result_dir +"/metrics"+suffix_out_optics+".txt",output_metric)
-
-
-
-    #Get best match
-    angle, id_kp_MRI = get_id_kp_MRI_angle(result_dir +"/metrics"+suffix_out_optics+".txt")
-
-
-
-
-    #set filename
-    filename_MRI = output_dir+"T1_proj_skeleton.nii.gz"
-    filename_optics = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
-
-    filename_optics_signed_distance = output_dir +"optics_signed_distance"+suffix_out_optics+".nii.gz"
-    filename_MRI_signed_distance = output_dir +"MRI_signed_distance.nii.gz"
-
-    filename_tumor = output_dir+"Mask_Proj_Tumor.nii.gz"
-    filename_mask_MRI = output_dir+"Mask_Proj_MRI.nii.gz"
-    filename_mask_otpics = output_dir+"optics_mask"+suffix_out_optics+".nii.gz"
-
-
-    kp_MRI_phys = kpts_MRI_tumor_phys[id_kp_MRI]
-    kp_MRI = kpts_MRI_tumor[id_kp_MRI]
-
-
-    #Change origin of optics slice to match keypoint
-    change_origin(filenames_MRI= [filename_MRI, filename_mask_MRI, filename_MRI_signed_distance],
-                filenames_optics= [filename_optics, filename_mask_otpics, filename_optics_signed_distance],
-                kpt_Optics= kp_Optics_phys,
-                kpt_MRI= kp_MRI_phys)
-
-
-    #In the parameter file, change the center of rotation (set origin of optics image)
-    replace_line_in_file(file_path=parameter_filename,
-                        key='(CenterOfRotationPoint',
-                        new_string="(CenterOfRotationPoint "+str(kp_MRI_phys[0])+" "+str(kp_MRI_phys[1])+")"+'\n')
-
-
-
-    #Load volumes with origin changed
-    filename_MRI = filename_MRI.split('.')[0]+"_origin_changed.nii.gz"
-    filename_mask_MRI = filename_mask_MRI.split('.')[0]+"_origin_changed.nii.gz"
-    filename_MRI_signed_distance = filename_MRI_signed_distance.split('.')[0]+"_origin_changed.nii.gz"
-
-    filename_optics = filename_optics.split('.')[0]+"_origin_changed.nii.gz"
-    filename_mask_otpics = filename_mask_otpics.split('.')[0]+"_origin_changed.nii.gz"
-    filename_optics_signed_distance = filename_optics_signed_distance.split('.')[0]+"_origin_changed.nii.gz"
-
-
-    MRI_proj = itk.imread(filename_MRI,itk.F)
-    Optics_img = itk.imread(filename_optics,itk.F)
-
-    Optical_mask=  itk.imread(filename_mask_otpics,itk.UC)
-    mask_MRI = itk.imread(filename_mask_MRI,itk.UC)
-
-    Optics_signed_distance = itk.imread(filename_optics_signed_distance,itk.F)
-    MRI_signed_distance = itk.imread(filename_MRI_signed_distance,itk.F)
-
-
-
-
-    #rotate image
-    rotated_optics = optics_itk_rotation_2D(angle, Optics_img, MRI_proj, kp_Optics, kp_MRI_phys)
-    rotated_optics_signed_distance = optics_itk_rotation_2D(angle, Optics_signed_distance, MRI_proj, kp_Optics, kp_MRI_phys)
-
-    #Write optical image
-    itk.imwrite(rotated_optics,result_dir + "/opt_"+str(angle)+suffix_out_optics+".nii.gz")
-    itk.imwrite(rotated_optics_signed_distance,result_dir + "/opt_signed_distance_"+str(angle)+suffix_out_optics+".nii.gz")
-
-
-
-    #Apply registration
-    if params.multi_metric_multi_images:
-        registered_vol, params_transform = optics_to_MRI_slices_registration_multi_metric_multi_images(fixed_skeleton = MRI_proj,
-                                                                                                        fixed_signed_distance = MRI_signed_distance,
-                                                                                                        moving_skeleton=rotated_optics,
-                                                                                                        moving_signed_distance=rotated_optics_signed_distance,
-                                                                                                        fixed_mask=mask_MRI,
-                                                                                                        output_log_dir=result_dir,
-                                                                                                        parameter_file=parameter_filename,
-                                                                                                        output_filename="registration_out"+suffix_out_optics+".txt",
-                                                                                                        log_to_console= False)
-    else:
-        registered_vol, params_transform = optics_to_MRI_slices_registration(fixed_img = MRI_proj,
-                                                                            moving_img = rotated_optics,
-                                                                            fixed_mask = mask_MRI,
-                                                                            output_log_dir=result_dir,
-                                                                            output_filename="registration_out"+suffix_out_optics+".txt",
-                                                                            log_to_console= False)
-
-
-
-    filename_reg = result_dir +"/registered_proj_" + str(angle) +suffix_out_optics+".nii.gz"
-    itk.imwrite(registered_vol,filename_reg)
-    itk.elxParameterObjectPython.elastixParameterObject_WriteParameterFile(params_transform,result_dir + "/Registration_params"+suffix_out_optics+".txt") 
-
+        reg_params.registration_metric = float(metric[best_angle])
+        reg_params.registration_custom_metric = float(custom_metric[best_angle_custom_metric])
+        
+        reg_params.save(result_dir+"/Reg_params.json")
 
     #Show registration for the minimal metric
     # open_itksnap_with_overlay(filename_MRI, filename_reg)
@@ -1709,17 +2243,48 @@ def main_Optics_to_MRI_registration(Mypath = Paths(), params=Params()):
     return "Success"
 
 
+def get_best_MRI_keypoint(Mypath = Paths(), params = Params()):
+
+    #Get result directory for all keypoints
+    result_dir = get_registration_result_dir(Mypath, params)
+    result_dirs = glob.glob(result_dir+"*")
+
+    #Multi metric
+    metric = []
+    multi_metric = []
+
+    for dir in result_dirs:
+        reg_params = Registration_Params.load(dir+"/Reg_params.json")
+        metric.append(reg_params.registration_metric)
+        multi_metric.append(reg_params.registration_custom_metric)
+    
+    metric = np.asarray(metric)
+    multi_metric = np.asarray(multi_metric)
+
+    if params.use_custom_registration_metric:
+        label_idx = os.path.basename(result_dirs[multi_metric.argmin()])
+    else:
+        label_idx = os.path.basename(result_dirs[metric.argmin()])
+
+    return "Success", label_idx
+
 
 
 def plot_registration_results(Mypath = Paths(), params=Params()):
 
+    #data directory
     main_path_optics = Mypath.main_path_optics
-    output_dir = Mypath.output_dir
+    BV_segmentation_dir = Mypath.output_BV_segmentation_dir
 
-    if params.multi_metric_multi_images:
-        result_dir = output_dir+"Rotation_mutli_metric_image"
-    else:
-        result_dir = output_dir+"Rotation"
+
+    #Get best registration result
+    error,label_MRI_ktp = get_best_MRI_keypoint(Mypath, params)
+    if error != "Success":
+        return error
+
+    #Get full directory
+    result_dir = get_registration_result_dir(Mypath, params)
+    result_dir += label_MRI_ktp+"/"
 
 
     #Load initial optical image
@@ -1730,129 +2295,80 @@ def plot_registration_results(Mypath = Paths(), params=Params()):
     #Check if optical imaging is RGB or HSI
     _,suffix_out_optics = is_RGB_optical_image(filename_initial_img_optics)
 
-    #Load metric file
-    filename_metric_file = result_dir +"/metrics"+suffix_out_optics+".txt"
-    if not os.path.exists(filename_metric_file):
-        return "Metrics file is missing",None
-    output_metric = np.loadtxt(filename_metric_file)
+
+    #Load registration params
+    reg_params = Registration_Params.load(result_dir+"/Reg_params.json")
+    angle = reg_params.angle
 
 
+    if params.registration_type == "Skeleton" or params.registration_type == "Multi metric":
+
+        #Set MRI and optical filenames
+        filename_MRI = BV_segmentation_dir+"T1_proj_skeleton_origin_changed.nii.gz"
+        filename_reg = result_dir +"/registered_proj_" + str(angle) +suffix_out_optics+".nii.gz"
+        if not os.path.exists(filename_MRI):
+            return "[plot_registration_results] 2 MRI skeleton file is missing",None
+        
+        if not os.path.exists(filename_reg):
+            return "[plot_registration_results] 2 Registered optical image is missing",None
+        
+
+        #Load images
+        mri = itk.GetArrayFromImage(itk.imread(filename_MRI))*255
+        optics = itk.GetArrayFromImage(itk.imread(filename_reg))
+
+        
+        #Threshold optical image
+        thresh = 0.1
+        optics[optics>thresh] = 255
+        optics[optics<=thresh] = 0
+        optics = cv.ximgproc.thinning(optics.astype(np.uint8))
 
 
-    #Load optics and MRI files
-    filename_MRI = output_dir+"T1_proj_skeleton.nii.gz"
-    filename_optics = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
-    filename_mask_otpics = output_dir+"optics_mask"+suffix_out_optics+".nii.gz"
-    filename_tumor = output_dir+"Mask_Proj_Tumor.nii.gz"
+        #Dilate MRI data for display
+        # ksize=3
+        # kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize,ksize))
+        # mri = cv.morphologyEx(mri, op=cv.MORPH_DILATE, kernel=kernel)*255
 
-    if not os.path.exists(filename_MRI):
-        return (os.path.basename(filename_MRI)+ " is missing"),None
-
-    if not os.path.exists(filename_optics):
-        return (os.path.basename(filename_optics)+ " is missing"),None
-
-    if not os.path.exists(filename_tumor):
-        return (os.path.basename(filename_tumor)+ " is missing"),None
-
-    if not os.path.exists(filename_mask_otpics):
-        return (os.path.basename(filename_mask_otpics)+ " is missing"),None
+        #Display
+        display_img = np.zeros((optics.shape[0],optics.shape[1],3))
+        display_img[:,:,0] = mri
+        display_img[:,:,2] = optics
+        display_img = display_img.astype(np.uint8)
 
 
+    if params.registration_type == "Frangi":
 
 
+        #Set MRI and optical filenames
+        filename_MRI = BV_segmentation_dir+"T1_proj_enhanced_origin_changed.nii.gz"
+        filename_reg = result_dir +"/registered_proj_" + str(angle) +suffix_out_optics+".nii.gz"
 
-    # Load itk volumes
-    MRI_proj = itk.imread(filename_MRI,itk.UC)
-    Optics_img = itk.imread(filename_optics,itk.UC)
-    Optical_mask=  itk.imread(filename_mask_otpics,itk.UC)
-    mask_tumor = itk.imread(filename_tumor,itk.UC)
+        if not os.path.exists(filename_MRI):
+            return "[plot_registration_results] 2 MRI frangi image file is missing",None
+        
+        if not os.path.exists(filename_reg):
+            return "[plot_registration_results] 2Registered optical image is missing",None
+        
 
+        #Load images
+        mri = itk.GetArrayFromImage(itk.imread(filename_MRI))
+        np_result_reg = itk.GetArrayFromImage(itk.imread(filename_reg))
 
+        
+        np_result_reg = 255*((np_result_reg-np_result_reg.min())/(np_result_reg.max() - np_result_reg.min()))
+        np_result_reg = np_result_reg.astype(np.uint8)
 
-
-
-
-
-
-
-    
-    #Plot registration metric
-    # plt.figure(figsize=(10,10))
-    
-    # plt.subplot(121)
-    # plt.title("Skeleton mask registration (keypoint initialization)")
-
-    # if output_metric.ndim > 1:
-    #     for i in range(output_metric.shape[0]):
-    #         plt.scatter(np.arange(0,360), output_metric[i])
-    # else:
-    #     plt.scatter(np.arange(0,360), output_metric)
-
-    # plt.xlabel("Angle (degrees)")
-    # plt.ylabel("Normalized correlation")
-    
-
-
-
-
-
-
-
-    
-    #Get best match
-    angle, id_kp_MRI = get_id_kp_MRI_angle(filename_metric_file)
-
-
-    #Get center of mass of tumor and optical mask
-    kp_Optics, kp_Optics_phys, _kpts_MRI_tumor, _kpts_MRI_tumor_phys = get_alignment_points(Optical_mask, Optics_img,
-                                                                                            MRI_proj, mask_tumor, 
-                                                                                            params.kpts_MRI_tumor, params.kpt_optics,
-                                                                                            params.touch_vessel)
-    kp_MRI_phys = _kpts_MRI_tumor_phys[id_kp_MRI]
-    kp_MRI = _kpts_MRI_tumor[id_kp_MRI]
-
-
-
-    #Set MRI and optical filenames
-    filename_MRI = output_dir+"T1_proj_skeleton_origin_changed.nii.gz"
-    filename_reg = result_dir +"/registered_proj_" + str(angle) +suffix_out_optics+".nii.gz"
-
-    if not os.path.exists(filename_MRI):
-        return "MRI skeleton file is missing",None
-    
-    if not os.path.exists(filename_reg):
-        return "Registered optical image is missing",None
-    
-
-    #Load images
-    mri = itk.GetArrayFromImage(itk.imread(filename_MRI))*255
-    optics = itk.GetArrayFromImage(itk.imread(filename_reg))
-
-    
-    #Threshold optical image
-    thresh = 0.1
-    optics[optics>thresh] = 255
-    optics[optics<=thresh] = 0
-    optics = cv.ximgproc.thinning(optics.astype(np.uint8))
-
-
-    #Dilate MRI data for display
-    # ksize=3
-    # kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(ksize,ksize))
-    # mri = cv.morphologyEx(mri, op=cv.MORPH_DILATE, kernel=kernel)*255
-
-    #Display
-    display_img = np.zeros((optics.shape[0],optics.shape[1],3))
-    display_img[:,:,0] = mri
-    display_img[:,:,2] = optics
-    display_img = display_img.astype(np.uint8)
+        display_img = np.zeros((np_result_reg.shape[0],np_result_reg.shape[1],3),dtype=np.uint8)
+        display_img[:,:,0] = mri
+        display_img[:,:,2] = np_result_reg
 
     # plt.subplot(122)
     # plt.title("MRI (red) and registered optical skeletons (blue)")
     # plt.imshow(cv.cvtColor(display_img,cv.COLOR_BGR2RGB))
     # plt.show()
 
-    cv.imwrite(output_dir+"overlay_res_reg.png",display_img)
+    cv.imwrite(result_dir+"/overlay_res_reg.png",display_img)
 
 
 
@@ -1864,123 +2380,72 @@ def plot_registration_results(Mypath = Paths(), params=Params()):
 
 
 
-def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
 
+
+def project_optical_image_on_MRI(Mypath = Paths(), params=Params(), result_dir="", optical_img_to_project = None, use_custom_metric = False):
+
+    #data directory
     main_path_optics = Mypath.main_path_optics
-    output_dir = Mypath.output_dir
+    MRI_projection_dir = Mypath.output_MRI_projection_dir
 
-    # colormap_stats_optics = cv.COLORMAP_PLASMA
-    colormap_stats_optics = cv.COLORMAP_JET
-
-    #result folder
-    if params.multi_metric_multi_images:
-        result_dir = output_dir+"Rotation_mutli_metric_image"
-    else:
-        result_dir = output_dir+"Rotation"
 
 
 
     #Check if optical imaging is RGB or HSI
     filename_optics = main_path_optics+"initial_img.png"
     if not os.path.exists(filename_optics):
-        return ("Optical image is missing")
+        return "[project_optical_image_on_MRI] Optical image is missing", None
 
     _,suffix_out_optics = is_RGB_optical_image(filename_optics)
 
 
     #filename MRI images
-    filename_MRI_proj = output_dir+"Proj_MRI.nii.gz"
-    filename_fMRI_stats_proj = glob.glob(output_dir+"fMRI/inferences/rotated/*_Mask_proj.nii.gz")
-
-
-    filename_tumor_proj = output_dir+"Mask_Proj_Tumor.nii.gz"
-    filename_MRI_skeleton = output_dir+"T1_proj_skeleton.nii.gz"
-    filename_MRI_enhanced_proj = output_dir +"MRI_proj_enhanced.png"
-
-    filename_vol_surface_rotated = output_dir+'surface_mask_rotated.nii.gz'
-    filename_vol_tumor_rotated = output_dir+'Tumor_rotated.nii.gz'
-    filename_MRI_rotated = output_dir+'T1_rotated.nii.gz'
-
-    filename_MRI = output_dir + "r_T1_bet.nii.gz"
-    filename_MRI_surface = output_dir+'surface_mask.nii.gz'
+    filename_MRI_proj = MRI_projection_dir+"Proj_MRI.nii.gz"
 
     #filename optical images
     filename_optics_mask = main_path_optics+"mask.png"
-    filename_skeleton = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
-    filename_mask_optics_low_res = output_dir+"optics_mask"+suffix_out_optics+".nii.gz"
-    filename_optics_stats = glob.glob(main_path_optics + "foptics/*.txt")
-
 
     #Filename registration params
-    filename_params_reg = result_dir +"/Registration_params"+suffix_out_optics+".txt"
+    if use_custom_metric:
+        filename_params_reg = result_dir +"/Registration_params_custom_metric"+suffix_out_optics+".txt"
+    else:
+        filename_params_reg = result_dir +"/Registration_params"+suffix_out_optics+".txt"
 
 
-
-
-    
 
     if not os.path.exists(filename_MRI_proj):
-        return ("MRI projection is missing")
+        return "[project_optical_image_on_MRI] MRI proj is missing", None
 
     if not os.path.exists(filename_optics_mask):
-        return ("Optical mask is missing")
-
-    if not os.path.exists(filename_skeleton):
-        return ("Optical skeleton is missing")
+        return "[project_optical_image_on_MRI] Optical mask is missing", None
 
     if not os.path.exists(filename_params_reg):
-        return ("Registration param fil is missing")
+        return "[project_optical_image_on_MRI] Registration param file is missing", None
 
     if not os.path.exists(main_path_optics+"resolution.txt"):
-        return ("Optical resolution file is missing")
+        return "[project_optical_image_on_MRI] Optical resolution file is missing", None
 
-    if not os.path.exists(result_dir+"/metrics"+suffix_out_optics+".txt"):
-        return ("Registration metric is missing")
+    if not os.path.exists(result_dir+"/Reg_params.json"):
+        return "[project_optical_image_on_MRI] registration param json file is missing", None
 
-    if not os.path.exists(filename_tumor_proj):
-        return (os.path.basename(filename_tumor_proj)+ " is missing")
-
-    if not os.path.exists(filename_mask_optics_low_res):
-        return (os.path.basename(filename_mask_optics_low_res)+ " is missing")
-
-
-
-
-
-    if not os.path.exists(filename_vol_surface_rotated):
-        return ("Rotated surface file is missing")
-
-    if not os.path.exists(filename_vol_tumor_rotated):
-        return ("Rotated tumor is missing")
-
-    if not os.path.exists(filename_MRI_rotated):
-        return ("Rotated T1 vol is missing")
-
-    if not os.path.exists(filename_MRI_enhanced_proj):
-        return ("MRI proj enhanced is missing")
-
-
-
-    ########################################
-    # Create saving directory
-    #######################################
-
-    # Saving directory
-    saving_dir = output_dir + "Projection/"
-    if not os.path.exists(saving_dir):
-        os.mkdir(saving_dir)
 
 
     #####################################################################
     # Get angle from moving optical image used to calculate the transform
     #####################################################################
 
-    #Get angle and MRI kp
-    angle, id_kp_MRI = get_id_kp_MRI_angle(result_dir +"/metrics"+suffix_out_optics+".txt")
+    #Load registration params
+    reg_params = Registration_Params.load(result_dir+"/Reg_params.json")
 
-
-
-
+    if use_custom_metric:
+        angle = reg_params.angle_custom_metric
+    else:
+        angle = reg_params.angle
+    
+    kp_Optics = reg_params.Optics_kpt
+    kp_Optics_phys = reg_params.Optics_kpt_phys
+    kp_MRI = reg_params.MRI_kpt
+    kp_MRI_phys = reg_params.MRI_kpt_phys
 
 
     ########################################
@@ -1989,51 +2454,8 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
 
 
     # Load images
-    img = cv.imread(filename_optics,cv.IMREAD_ANYCOLOR)
     mask = cv.imread(filename_optics_mask,cv.IMREAD_ANYCOLOR)/255
-
-
-
-    mri_skeleton = itk.imread(filename_MRI_skeleton)
-    itk_skeleton = itk.imread(filename_skeleton)
     MRI_proj = itk.imread(filename_MRI_proj)
-    Optical_mask=  itk.imread(filename_mask_optics_low_res,itk.UC)
-    mask_tumor_proj = itk.imread(filename_tumor_proj,itk.UC)
-
-    np_MRI_proj_enhanced = cv.imread(filename_MRI_enhanced_proj,cv.IMREAD_GRAYSCALE)
-
-
-    rotated_surface = itk.imread(filename_vol_surface_rotated, itk.F)
-    rotated_tumor = itk.imread(filename_vol_tumor_rotated, itk.F)
-    rotated_t1 = itk.imread(filename_MRI_rotated, itk.F)
-
-    T1 = itk.imread(filename_MRI,itk.F)
-    surface = itk.imread(filename_MRI_surface, itk.F)
-
-
-
-
-
-
-
-
-    ########################
-    # Get keypoints 
-    ########################
-    kp_Optics, kp_Optics_phys, kpts_MRI_tumor, kpts_MRI_tumor_phys = get_alignment_points(Optical_mask,
-                                                                                        itk_skeleton,
-                                                                                        mri_skeleton,
-                                                                                        mask_tumor_proj,
-                                                                                        params.kpts_MRI_tumor,
-                                                                                        params.kpt_optics,
-                                                                                        params.touch_vessel)
-
-    kp_MRI_phys = kpts_MRI_tumor_phys[id_kp_MRI]
-    kp_MRI = kpts_MRI_tumor[id_kp_MRI]
-
-
-
-
 
 
 
@@ -2053,8 +2475,8 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
 
     if params.use_upscaled_images:
         #Calculate scaling factors
-        x_factor = itk_skeleton.GetSpacing()[0]/res_opt_in_mm
-        y_factor = itk_skeleton.GetSpacing()[1]/res_opt_in_mm
+        x_factor = MRI_proj.GetSpacing()[0]/res_opt_in_mm
+        y_factor = MRI_proj.GetSpacing()[1]/res_opt_in_mm
         
         #change transform parameter
         params_transform_reg = calculate_upscaled_Parameter_file(params_transform_reg,
@@ -2062,10 +2484,10 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
 
 
     #Apply transform to optical mask
-    np_optics_mask_registered = Project_Optical_img_on_MRI_projection(mask,
+    np_optical_img_registered = Project_Optical_img_on_MRI_projection(optical_img_to_project,
                                                                     mask,
                                                                     angle,
-                                                                    itk_skeleton.GetSpacing(),
+                                                                    MRI_proj.GetSpacing(),
                                                                     res_mri_in_mm,
                                                                     res_opt_in_mm,
                                                                     kp_Optics,
@@ -2075,6 +2497,115 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
 
 
 
+
+
+
+    return "Success", np_optical_img_registered
+
+
+
+
+
+
+def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
+
+    #data directory
+    main_path_optics = Mypath.main_path_optics
+    MRI_projection_dir = Mypath.output_MRI_projection_dir
+    BV_segmentation_dir = Mypath.output_BV_segmentation_dir
+    Optics_BV_segmentation_dir = BV_segmentation_dir+"Optics_thresh_"+str(params.thresh_optics)+"/"
+
+
+    output_dir = Mypath.output_dir
+
+    # colormap_stats_optics = cv.COLORMAP_PLASMA
+    colormap_stats_optics = cv.COLORMAP_JET
+
+    #Get best registration result
+    error,label_MRI_ktp = get_best_MRI_keypoint(Mypath, params)
+    if error != "Success":
+        return error
+    
+    #Get registration result directory
+    result_dir = get_registration_result_dir(Mypath, params)
+    result_dir += label_MRI_ktp+"/"
+
+
+
+    #Check if optical imaging is RGB or HSI
+    filename_optics = main_path_optics+"initial_img.png"
+    if not os.path.exists(filename_optics):
+        return ("[main_project_optical_image_on_MRI] Optical image is missing")
+
+    _,suffix_out_optics = is_RGB_optical_image(filename_optics)
+
+
+    #filename MRI images
+    filename_MRI_proj = MRI_projection_dir+"Proj_MRI.nii.gz"
+    filename_fMRI_stats_proj = glob.glob(output_dir+"fMRI/inferences/rotated/*_Mask_proj.nii.gz")
+    filename_MRI_enhanced_proj = BV_segmentation_dir +"MRI_proj_enhanced.png"
+
+
+    #filename optical images
+    filename_optics_mask = main_path_optics+"mask.png"
+    filename_optics_stats = glob.glob(main_path_optics + "foptics/*.txt")
+
+
+    
+
+    if not os.path.exists(filename_MRI_proj):
+        return ("[main_project_optical_image_on_MRI] MRI projection is missing")
+
+    if not os.path.exists(filename_optics_mask):
+        return ("[main_project_optical_image_on_MRI] Optical mask is missing")
+
+    if not os.path.exists(main_path_optics+"resolution.txt"):
+        return ("[main_project_optical_image_on_MRI] Optical resolution file is missing")
+
+    if not os.path.exists(result_dir+"/metrics"+suffix_out_optics+".txt"):
+        return ("[main_project_optical_image_on_MRI] Registration metric is missing")
+
+    if not os.path.exists(filename_MRI_enhanced_proj):
+        return ("[main_project_optical_image_on_MRI] MRI proj enhanced is missing")
+
+    if not os.path.exists(main_path_optics+"resolution.txt"):
+        return "[main_project_optical_image_on_MRI] Optics resolution file is missing"
+
+
+    ########################################
+    # Create saving directory
+    #######################################
+
+    # Saving directory
+    saving_dir = output_dir + "Projection/"
+    if not os.path.exists(saving_dir):
+        os.mkdir(saving_dir)
+
+
+
+    ########################################
+    # Load data
+    #######################################
+
+
+    # Load images
+    img = cv.imread(filename_optics,cv.IMREAD_ANYCOLOR)
+    mask = cv.imread(filename_optics_mask,cv.IMREAD_ANYCOLOR)/255
+    MRI_proj = itk.imread(filename_MRI_proj)
+    np_MRI_proj_enhanced = cv.imread(filename_MRI_enhanced_proj,cv.IMREAD_GRAYSCALE)
+
+    res_opt_in_mm = float(np.loadtxt(main_path_optics+"resolution.txt"))
+
+
+    ########################################
+    # Apply transform to optical mask
+    ########################################
+
+    # Apply transform
+    error, np_optics_mask_registered =  project_optical_image_on_MRI(Mypath, params, result_dir, mask)
+    if error != "Success":
+        return error
+    
     #Apply closing
     np_optics_mask_registered[np_optics_mask_registered>0.01] = 1
     ksize = 5
@@ -2089,34 +2620,22 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
 
 
 
-    #Apply transform to the optical image
+    ########################################
+    # Apply transform to the optical image
+    ########################################
+
     np_optics_vol_registered = []
     if img.ndim>2: #If the initial image is RGB
         for c in range(img.shape[2]):
-            temp = Project_Optical_img_on_MRI_projection(img[:,:,c],
-                                                        mask,
-                                                        angle,
-                                                        itk_skeleton.GetSpacing(),
-                                                        res_mri_in_mm,
-                                                        res_opt_in_mm,
-                                                        kp_Optics,
-                                                        kp_MRI_phys,
-                                                        params_transform_reg,
-                                                        params.use_upscaled_images).astype(np.uint8)
-            
+            error, temp = project_optical_image_on_MRI(Mypath, params, result_dir, img[:,:,c])
+            if error != "Success":
+                return error
             np_optics_vol_registered.append(temp*np_optics_mask_registered)
-    else: #else create grayscale image
-        temp = Project_Optical_img_on_MRI_projection(img,
-                                                    mask,
-                                                    angle,
-                                                    itk_skeleton.GetSpacing(),
-                                                    res_mri_in_mm,
-                                                    res_opt_in_mm,
-                                                    kp_Optics,
-                                                    kp_MRI_phys,
-                                                    params_transform_reg,
-                                                    params.use_upscaled_images).astype(np.uint8)
 
+    else: #else create grayscale image
+        error, temp = project_optical_image_on_MRI(Mypath, params, result_dir, img)
+        if error != "Success":
+            return error
         np_optics_vol_registered.append(temp*np_optics_mask_registered)
         np_optics_vol_registered.append(temp*np_optics_mask_registered)
         np_optics_vol_registered.append(temp*np_optics_mask_registered)
@@ -2131,9 +2650,11 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
 
 
 
+    ########################################
+    # Apply transform to the Optical stats maps
+    ########################################
 
-
-    #Apply transform to the stats maps
+    
     np_optics_stats_color = []
     np_optics_stats_mask = []
     for file_stats_optics in filename_optics_stats:
@@ -2142,27 +2663,13 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
         Optical_stats_mask = 255*(Optical_stats != 0).astype(np.uint8)
 
         #Project in MRI space
-        proj = Project_Optical_img_on_MRI_projection(Optical_stats,
-                                                    mask,
-                                                    angle,
-                                                    itk_skeleton.GetSpacing(),
-                                                    res_mri_in_mm,
-                                                    res_opt_in_mm,
-                                                    kp_Optics,
-                                                    kp_MRI_phys,
-                                                    params_transform_reg,
-                                                    params.use_upscaled_images)
-
-        stats_mask = Project_Optical_img_on_MRI_projection(Optical_stats_mask,
-                                                            mask,
-                                                            angle,
-                                                            itk_skeleton.GetSpacing(),
-                                                            res_mri_in_mm,
-                                                            res_opt_in_mm,
-                                                            kp_Optics,
-                                                            kp_MRI_phys,
-                                                            params_transform_reg,
-                                                            params.use_upscaled_images).astype(np.uint8)
+        error, proj = project_optical_image_on_MRI(Mypath, params, result_dir, Optical_stats)
+        if error != "Success":
+            return error
+        
+        error, stats_mask = project_optical_image_on_MRI(Mypath, params, result_dir, Optical_stats_mask)
+        if error != "Success":
+            return error
             
         #Get stat mask
         stats_mask[stats_mask>0.01] = 1
@@ -2208,6 +2715,10 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
     np_MRI_proj = cv.cvtColor(np_MRI_proj,cv.COLOR_GRAY2BGR)
 
     if params.use_upscaled_images:
+        #Calculate scaling factors
+        x_factor = MRI_proj.GetSpacing()[0]/res_opt_in_mm
+        y_factor = MRI_proj.GetSpacing()[1]/res_opt_in_mm
+        
         new_width = int(np_MRI_proj.shape[1]*x_factor)
         new_height = int(np_MRI_proj.shape[0]*y_factor)
         np_MRI_proj = cv.resize(np_MRI_proj,(new_width,new_height))
@@ -2223,8 +2734,8 @@ def main_project_optical_image_on_MRI(Mypath = Paths(), params=Params()):
     ########################################
     # Write projection results
     ########################################
-    cv.imwrite(output_dir+"Optical_img_projected_on_MRI"+suffix_out_optics+".png",display)
-    cv.imwrite(output_dir+"Optical_img_projected_on_MRI2"+suffix_out_optics+".png",display2)
+    cv.imwrite(saving_dir+"Optical_img_projected_on_MRI"+suffix_out_optics+".png",display)
+    cv.imwrite(saving_dir+"Optical_img_projected_on_MRI2"+suffix_out_optics+".png",display2)
     cv.imwrite(saving_dir+"RGB_registered_on_MRI"+suffix_out_optics+".png",res_optical_image)
     cv.imwrite(saving_dir+"optics_mask_registered_on_MRI"+suffix_out_optics+".png",np_optics_mask_registered)
     cv.imwrite(saving_dir+"MRI_proj.png",np_MRI_proj)
@@ -2425,6 +2936,7 @@ def main_reconstruct_Optics_volume(Mypath = Paths()):
 
     main_path_optics = Mypath.main_path_optics
     output_dir = Mypath.output_dir
+    MRI_projection_dir = Mypath.output_MRI_projection_dir
 
     #Check if optical imaging is RGB or HSI
     filename_optics = main_path_optics+"initial_img.png"
@@ -2438,35 +2950,35 @@ def main_reconstruct_Optics_volume(Mypath = Paths()):
     filename_optical_mask_registered = output_dir + "Projection/optics_mask_registered_on_MRI.png"
     fOptics_filenames = glob.glob(output_dir + "Projection/foptics_"+suffix_out_optics+"/*_mask.png")
 
-    filename_vol_surface_rotated = output_dir+'surface_mask_rotated.nii.gz'
-    filename_vol_tumor_rotated = output_dir+'Tumor_rotated.nii.gz'
+    filename_vol_surface_rotated = MRI_projection_dir+'surface_mask_rotated.nii.gz'
+    filename_vol_tumor_rotated = MRI_projection_dir+'Tumor_rotated.nii.gz'
     filename_MRI = output_dir + "r_T1_bet.nii.gz"
     filename_MRI_surface = output_dir+'surface_mask.nii.gz'
 
-    filename_rotation_matrix = output_dir+"Rotation_matrix_projection.txt"
-    filename_translation_vector = output_dir+"Translation_vector_projection.txt"
+    filename_rotation_matrix = MRI_projection_dir+"Rotation_matrix_projection.txt"
+    filename_translation_vector = MRI_projection_dir+"Translation_vector_projection.txt"
 
 
     if not os.path.exists(filename_rotation_matrix):
-        return "Rotation matrix is missing"
+        return "[main_reconstruct_Optics_volume] Rotation matrix is missing"
 
     if not os.path.exists(filename_translation_vector):
-       return "Translation vector is missing"
+       return "[main_reconstruct_Optics_volume]Translation vector is missing"
     
     if not os.path.exists(filename_optical_img_registered):
-        return "Optical image registered on MRI is missing"
+        return "[main_reconstruct_Optics_volume]Optical image registered on MRI is missing"
     
     if not os.path.exists(filename_optical_mask_registered):
-        return "Surgical window mask is missing"
+        return "[main_reconstruct_Optics_volume]Surgical window mask is missing"
     
     if not os.path.exists(filename_vol_surface_rotated):
-        return "Rotated surface file is missing"
+        return "[main_reconstruct_Optics_volume]Rotated surface file is missing"
 
     if not os.path.exists(filename_MRI):
-        return (os.path.basename(filename_MRI)+ " is missing")
+        return "[main_reconstruct_Optics_volume] T1 bet volume is missing"
 
     if not os.path.exists(filename_MRI_surface):
-        return (os.path.basename(filename_MRI_surface)+ " is missing")
+        return "[main_reconstruct_Optics_volume] MRi surface mask is missing"
 
 
 
@@ -2580,14 +3092,23 @@ def main_reconstruct_Optics_volume(Mypath = Paths()):
 def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
     
     main_path_optics = Mypath.main_path_optics
+    MRI_proj_dir = Mypath.output_MRI_projection_dir
+    BV_segmentation_dir = Mypath.output_BV_segmentation_dir
+    Optics_BV_segmentation_dir = BV_segmentation_dir+"Optics_thresh_"+str(params.thresh_optics)+"/"
     output_dir = Mypath.output_dir
 
+    saving_dir = output_dir+"Projection/"
 
-    #result folder
-    if params.multi_metric_multi_images:
-        result_dir = output_dir+"Rotation_mutli_metric_image"
-    else:
-        result_dir = output_dir+"Rotation"
+
+    #Get best registration result
+    error,label_MRI_ktp = get_best_MRI_keypoint(Mypath, params)
+    if error != "Success":
+        return error
+    
+    #Get registration result directory
+    result_dir = get_registration_result_dir(Mypath, params)
+    result_dir += label_MRI_ktp+"/"
+
 
 
     #Check if optical imaging is RGB or HSI
@@ -2597,15 +3118,25 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
     _,suffix_out_optics = is_RGB_optical_image(filename_optics)
 
     #get filenames
-    filename_proj_MRI = output_dir+"Proj_MRI.nii.gz"
-    filename_mask_proj_MRI = output_dir+"Mask_Proj_MRI.nii.gz"
-    filename_mask_proj_tumor = output_dir+"Mask_Proj_Tumor.nii.gz"
-    filename_MRI_skeleton = output_dir+"T1_proj_skeleton.nii.gz"
-    filename_params_reg = result_dir +"/Registration_params"+suffix_out_optics+".txt"
-    filename_optics_undersampled = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
+    filename_proj_MRI = MRI_proj_dir+"Proj_MRI.nii.gz"
+    filename_mask_proj_MRI = MRI_proj_dir+"Mask_Proj_MRI.nii.gz"
+    filename_mask_proj_tumor = MRI_proj_dir+"Mask_Proj_Tumor.nii.gz"
+    filename_MRI_skeleton = BV_segmentation_dir+"T1_proj_skeleton.nii.gz"
+    
+    
+    #Filename registration params
+    filename_params_reg_json = result_dir +"Reg_params.json"
+    if params.use_custom_registration_metric:
+        filename_params_reg = result_dir +"Registration_params_custom_metric"+suffix_out_optics+".txt"
+    else:
+        filename_params_reg = result_dir +"Registration_params"+suffix_out_optics+".txt"
+
+
+
+    filename_optics_undersampled = Optics_BV_segmentation_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
     filename_mask_optics = main_path_optics+"mask.png"
-    filename_mask_optics_undersampled = output_dir+"optics_mask"+suffix_out_optics+".nii.gz"
-    filename_optics_enhanced = output_dir+"Optical_enhanced_full_res"+suffix_out_optics+".png"
+    filename_mask_optics_undersampled = Optics_BV_segmentation_dir+"optics_mask"+suffix_out_optics+".nii.gz"
+    filename_optics_enhanced = Optics_BV_segmentation_dir+"Optical_enhanced_full_res"+suffix_out_optics+".png"
 
 
 
@@ -2615,39 +3146,55 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
 
 
 
+    if not os.path.exists(filename_params_reg_json):
+        return ("[main_project_MRI_in_optics_space] Registration param json file missing")
+
     if not os.path.exists(filename_proj_MRI):
-        return ("MRI projection is missing")
+        return ("[main_project_MRI_in_optics_space] MRI projection is missing")
 
     if not os.path.exists(filename_mask_proj_MRI):
-        return ("Mask MRI projection is missing")
+        return ("[main_project_MRI_in_optics_space] Mask MRI projection is missing")
 
     if not os.path.exists(filename_mask_proj_tumor):
-        return ("Mask tumor projection is missing")
+        return ("[main_project_MRI_in_optics_space] Mask tumor projection is missing")
 
     if not os.path.exists(filename_MRI_skeleton):
-        return ("MRI skeleton projection is missing")
+        return ("[main_project_MRI_in_optics_space] MRI skeleton projection is missing")
 
     if not os.path.exists(filename_params_reg):
-        return ("Registetration params are missing")
+        return ("[main_project_MRI_in_optics_space] Registetration params are missing")
 
     if not os.path.exists(filename_optics_undersampled):
-        return ("Optical skeleton is missing")
+        return ("[main_project_MRI_in_optics_space] Optical skeleton is missing")
 
     if not os.path.exists(filename_mask_optics):
-        return ("Optical mask is missing")
+        return ("[main_project_MRI_in_optics_space] Optical mask is missing")
 
     if not os.path.exists(filename_mask_optics_undersampled):
-        return ("Optical mask is missing")
+        return ("[main_project_MRI_in_optics_space] Optical mask is missing")
 
     if not os.path.exists(filename_optics_enhanced):
-        return ("Optical enhanced image is missing")
+        return ("[main_project_MRI_in_optics_space] Optical enhanced image is missing")
 
     #####################################################################
     # Get angle from moving optical image used to calculate the transform
     #####################################################################
 
-    #Get angle and MRI kp
-    angle, id_kp_MRI = get_id_kp_MRI_angle(result_dir +"/metrics"+suffix_out_optics+".txt")
+    #Load registration params
+    reg_params = Registration_Params.load(filename_params_reg_json)
+
+    #Get best angle
+    if params.use_custom_registration_metric:
+        angle = reg_params.angle_custom_metric
+    else:
+        angle = reg_params.angle
+
+    #Get kpt
+    kp_MRI_phys = reg_params.MRI_kpt_phys
+    kp_MRI = reg_params.MRI_kpt
+    kp_Optics = reg_params.Optics_kpt
+    kp_Optics_phys = reg_params.Optics_kpt_phys
+
 
 
     ############################
@@ -2655,58 +3202,31 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
     ###########################
 
     MRI_proj = itk.imread(filename_proj_MRI,itk.F)
-    np_MRI_projection = itk.GetArrayFromImage(MRI_proj)
 
 
     mask_proj_MRI = itk.imread(filename_mask_proj_MRI,itk.F)
-    np_mask = itk.GetArrayFromImage(mask_proj_MRI)
 
     tumor_proj = itk.imread(filename_mask_proj_tumor,itk.UC)
-    np_tumor_mask = itk.GetArrayFromImage(tumor_proj)
 
     MRI_skeleton = itk.imread(filename_MRI_skeleton)
 
     mask_optics_undersampled = itk.imread(filename_mask_optics_undersampled,itk.UC)
-    np_mask_optics_undersampled = itk.GetArrayFromImage(mask_optics_undersampled)
 
 
     np_optical_img = cv.imread(filename_optics)
     np_mask_optics = cv.imread(filename_mask_optics,cv.IMREAD_GRAYSCALE)
 
 
-    np_optics_enhanced = cv.imread(filename_optics_enhanced, cv.IMREAD_GRAYSCALE)
 
     optical_img_skeleton_undersampled = itk.imread(filename_optics_undersampled, itk.F)
     np_optical_img_skeleton_undersampled = itk.GetArrayFromImage(optical_img_skeleton_undersampled)
 
-    #Load fixed image
-    optical_fixed_img = itk.imread(result_dir +"/opt_"+str(angle)+suffix_out_optics+".nii.gz")
-    reg_optical_rotated = itk.imread(result_dir +"/registered_proj_"+str(angle)+suffix_out_optics+".nii.gz")
+
 
     # #Optical stats
     # if os.path.exists(filename_optics_stats) and os.path.exists(filename_optics_Zstats):
     #     Optical_Zstats_mask = cv.imread(filename_optics_stats,cv.IMREAD_ANYCOLOR)
     #     Optical_Zstats = np.loadtxt(filename_optics_Zstats)
-
-
-
-
-
-
-    ########################
-    # Get keypoints 
-    ########################
-    kp_Optics, kp_Optics_phys, kpts_MRI_tumor, kpts_MRI_tumor_phys = get_alignment_points(mask_optics_undersampled,
-                                                                                        optical_img_skeleton_undersampled,
-                                                                                        MRI_skeleton,
-                                                                                        tumor_proj, 
-                                                                                        params.kpts_MRI_tumor, 
-                                                                                        params.kpt_optics, 
-                                                                                        params.touch_vessel)
-
-    kp_MRI_phys = kpts_MRI_tumor_phys[id_kp_MRI]
-    kp_MRI = kpts_MRI_tumor[id_kp_MRI]
-
 
 
 
@@ -2732,7 +3252,6 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
                                                 transform=composite_transform,
                                                 use_reference_image=True,
                                                 reference_image=MRI_proj)
-                                                #  reference_image=optical_fixed_img)
                                                 
 
 
@@ -2751,7 +3270,6 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
                                                     transform=composite_transform,
                                                     use_reference_image=True,
                                                     reference_image=MRI_proj)
-                                                #  reference_image=optical_fixed_img)
                                                     
         fMRI_proj_on_optics.append(data)
         # np_data = itk.GetArrayFromImage(fMRI_proj_on_optics)
@@ -2764,18 +3282,9 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
                                                 transform=composite_transform,
                                                 use_reference_image=True,
                                                 reference_image=MRI_proj)
-                                                #  reference_image=optical_fixed_img)
                                                 
     np_MRI_skeleton_on_optics = itk.GetArrayFromImage(MRI_skeleton_on_optics)
     np_MRI_skeleton_on_optics = (np_MRI_skeleton_on_optics - np_MRI_skeleton_on_optics.min())/(np_MRI_skeleton_on_optics.max()-np_MRI_skeleton_on_optics.min())*255
-
-    #Optical image
-    np_optical_fixed_img = itk.GetArrayFromImage(optical_fixed_img)
-    np_optical_fixed_img = (np_optical_fixed_img - np_optical_fixed_img.min())/(np_optical_fixed_img.max()-np_optical_fixed_img.min())*255
-
-
-
-
 
 
 
@@ -2815,7 +3324,7 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
     np_rotated_MRI_proj = cv.resize(np_rotated_MRI_proj, (np_optical_img.shape[1], np_optical_img.shape[0]))
 
     display = cv.cvtColor(np_rotated_MRI_proj, cv.COLOR_GRAY2BGR)
-    cv.imwrite(output_dir+"MRI_projeced_on_Optics"+suffix_out_optics+".png",display)
+    cv.imwrite(saving_dir+"MRI_projeced_on_Optics"+suffix_out_optics+".png",display)
 
 
 
@@ -2835,7 +3344,7 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
     np_rotated_MRI_skeleton = np_rotated_MRI_skeleton*np_mask_optics
     np_rotated_MRI_skeleton[np_rotated_MRI_skeleton>0] = 255
     np_rotated_MRI_skeleton = cv.ximgproc.thinning(np_rotated_MRI_skeleton.astype(np.uint8))
-    cv.imwrite(output_dir+"MRI_skeleton_projeced_on_Optics"+suffix_out_optics+".png",np_rotated_MRI_skeleton)
+    cv.imwrite(saving_dir+"MRI_skeleton_projeced_on_Optics"+suffix_out_optics+".png",np_rotated_MRI_skeleton)
 
 
 
@@ -2844,7 +3353,7 @@ def main_project_MRI_in_optics_space(Mypath = Paths(), params=Params()):
     skeleton_optics = cv.resize(skeleton_optics, (np_optical_img.shape[1], np_optical_img.shape[0]))
     skeleton_optics[skeleton_optics>0.1] = 255
     skeleton_optics = cv.ximgproc.thinning(skeleton_optics.astype(np.uint8))
-    cv.imwrite(output_dir+"Optics_skeleton_"+suffix_out_optics+".png",skeleton_optics)
+    cv.imwrite(saving_dir+"Optics_skeleton_"+suffix_out_optics+".png",skeleton_optics)
 
     return "Success"
 
@@ -2864,23 +3373,23 @@ def main_plot_MRI_projected_on_Optics_space(Mypath = Paths()):
 
 
     filename_mask_optics = main_path_optics+"mask.png"
-    filename_skeleton_optics = output_dir+"Optics_skeleton_.png"
-    filename_MRI_skeleton = output_dir+"MRI_skeleton_projeced_on_Optics"+suffix_out_optics+".png"
-    filename_MRI_proj = output_dir+"MRI_projeced_on_Optics"+suffix_out_optics+".png"
+    filename_skeleton_optics = output_dir+"Projection/Optics_skeleton_"+suffix_out_optics+".png"
+    filename_MRI_skeleton = output_dir+"Projection/MRI_skeleton_projeced_on_Optics"+suffix_out_optics+".png"
+    filename_MRI_proj = output_dir+"Projection/MRI_projeced_on_Optics"+suffix_out_optics+".png"
 
     
 
     if not os.path.exists(filename_mask_optics): 
-        return "Optics mask is missing",None
+        return "[main_plot_MRI_projected_on_Optics_space] Optics mask is missing",None
 
     if not os.path.exists(filename_skeleton_optics):    
-        return "Optics skeleton is missing",None
+        return "[main_plot_MRI_projected_on_Optics_space] Optics skeleton is missing",None
     
     if not os.path.exists(filename_MRI_skeleton):    
-        return "MRI skeleton is missing",None
+        return "[main_plot_MRI_projected_on_Optics_space] MRI skeleton is missing",None
     
     if not os.path.exists(filename_MRI_proj):    
-        return "MRI proj is missing",None
+        return "[main_plot_MRI_projected_on_Optics_space] MRI proj is missing",None
     
 
 
@@ -3106,6 +3615,7 @@ def main_plot_fOptics_fMRI_stats_projected_on_optics(Mypath = Paths(), _fMRI_fil
 def main_place_optics_on_MRI(Mypath = Paths(), params=Params()):
     output_dir = Mypath.output_dir
     main_path_optics = Mypath.main_path_optics
+    result_dir = Mypath.output_registration_dir
 
     #Set filenames
     filename_MRI = output_dir+"T1_proj_skeleton.nii.gz"
@@ -3116,8 +3626,10 @@ def main_place_optics_on_MRI(Mypath = Paths(), params=Params()):
     #Check if image is RGB or HSI
     filename_initial_img = main_path_optics+"initial_img.png"
     _,suffix_out_optics = is_RGB_optical_image(filename_initial_img)
-    filename_optics = output_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
-    filename_mask_otpics = output_dir+"optics_mask"+suffix_out_optics+".nii.gz"
+
+
+    filename_optics = result_dir+"optics_skeleton"+suffix_out_optics+".nii.gz"
+    filename_mask_otpics = result_dir+"optics_mask"+suffix_out_optics+".nii.gz"
 
     #Load optics image resolution
     res_opt_in_mm = float(np.loadtxt(main_path_optics+"resolution.txt"))

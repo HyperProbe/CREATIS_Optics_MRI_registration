@@ -13,8 +13,51 @@
   <property name="windowTitle">
    <string>main</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,10,0">
-   <item>
+  <layout class="QGridLayout" name="gridLayout_9">
+   <item row="3" column="0">
+    <widget class="QLabel" name="_infoData">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QWidget" name="widget_2" native="true">
+     <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,10,0" columnstretch="1,0">
+      <item row="1" column="0" rowspan="2">
+       <widget class="MatplotlibWidget" name="_display" native="true"/>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="_slider_legend">
+        <property name="text">
+         <string>Alpha (%)</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSlider" name="_param_display">
+        <property name="orientation">
+         <enum>Qt::Orientation::Vertical</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="_display_title">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="0" column="0">
     <widget class="QWidget" name="widget" native="true">
      <layout class="QGridLayout" name="gridLayout_5">
       <item row="0" column="0">
@@ -34,10 +77,10 @@
      </layout>
     </widget>
    </item>
-   <item>
+   <item row="1" column="0">
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>3</number>
+      <number>2</number>
      </property>
      <widget class="QWidget" name="_tab_brain_extraction">
       <attribute name="title">
@@ -105,30 +148,42 @@
       <attribute name="title">
        <string>Create 2D MRI projection</string>
       </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout_4">
-       <item>
+      <layout class="QGridLayout" name="gridLayout_10">
+       <item row="0" column="0" colspan="2">
         <widget class="QPushButton" name="_process_all_MRI_projection">
          <property name="text">
           <string>Run all</string>
          </property>
         </widget>
        </item>
-       <item>
+       <item row="1" column="0" colspan="2">
         <widget class="QPushButton" name="_process_tumor_segmentation">
          <property name="text">
           <string>Brain tumor segmentation</string>
          </property>
         </widget>
        </item>
-       <item>
-        <widget class="QPushButton" name="_process_MRI_projection">
-         <property name="text">
-          <string>2D MRI projection</string>
+       <item row="2" column="0" rowspan="2" colspan="2">
+        <widget class="QGroupBox" name="groupBox_3">
+         <property name="title">
+          <string>MRI projection</string>
          </property>
+         <layout class="QGridLayout" name="gridLayout_11">
+          <item row="0" column="0">
+           <widget class="QPushButton" name="_process_MRI_projection">
+            <property name="text">
+             <string>Start process</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QComboBox" name="_projection_basis_choice"/>
+          </item>
+          <item row="2" column="0">
+           <widget class="QComboBox" name="_projection_axis_passing_through"/>
+          </item>
+         </layout>
         </widget>
-       </item>
-       <item>
-        <widget class="QComboBox" name="_projection_basis_choice"/>
        </item>
       </layout>
      </widget>
@@ -382,49 +437,6 @@
        </item>
       </layout>
      </widget>
-    </widget>
-   </item>
-   <item>
-    <widget class="QWidget" name="widget_2" native="true">
-     <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,10,0" columnstretch="1,0">
-      <item row="1" column="0" rowspan="2">
-       <widget class="MatplotlibWidget" name="_display" native="true"/>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="_slider_legend">
-        <property name="text">
-         <string>Alpha (%)</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QSlider" name="_param_display">
-        <property name="orientation">
-         <enum>Qt::Orientation::Vertical</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="_display_title">
-        <property name="text">
-         <string/>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="_infoData">
-     <property name="text">
-      <string/>
-     </property>
     </widget>
    </item>
   </layout>

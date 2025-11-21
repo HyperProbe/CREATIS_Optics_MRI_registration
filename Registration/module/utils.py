@@ -34,6 +34,41 @@ import pyvista as pv
 
 
 
+import itk
+import numpy as np
+
+def itk_metric_value_fixed_space(metric_type, fixed_img, moving_img):
+    """
+    Compute an ITK metric value between two images (same geometry).
+    metric_type must be one of:
+        itk.MeanSquaresImageToImageMetricv4
+        itk.NormalizedCorrelationImageToImageMetricv4
+        itk.MattesMutualInformationImageToImageMetricv4
+    """
+    metric = metric_type[type(fixed_img), type(moving_img)].New()
+    transform = itk.TranslationTransform[itk.D, fixed_img.GetImageDimension()].New()
+    interpolator = itk.LinearInterpolateImageFunction[type(fixed_img), itk.D].New()
+
+    
+    metric.SetFixedImage(fixed_img)
+    metric.SetMovingImage(moving_img)
+    metric.SetFixedImageRegion(fixed_img.GetLargestPossibleRegion())
+    metric.SetTransform(transform)
+    metric.SetInterpolator(interpolator)
+
+    # Required for MI
+    if metric_type == itk.MattesMutualInformationImageToImageMetricv4:
+        metric.SetNumberOfHistogramBins(64)
+
+    metric.Initialize()
+
+    params = itk.OptimizerParameters[itk.D]()
+    params.SetSize(2)
+    params.SetElement(0, 0)
+
+    return float(metric.GetValue(params))
+
+
 def is_RGB_optical_image(filename):
     img = cv.imread(filename,cv.IMREAD_ANYCOLOR)
 
@@ -62,21 +97,17 @@ def dice_coefficient(mask1, mask2):
     dice = 2.0 * intersection / size_sum
     return dice
 
-def overlap_coefficient(fOptics, fMRI):
-    # Ensure the masks are binary
-    fOptics = np.asarray(fOptics).astype(np.bool_)
-    fMRI = np.asarray(fMRI).astype(np.bool_)
+def overlap_coefficient(A, B):
+    # A and B: binary NumPy arrays (0/1 or False/True)
     
-    intersection = np.sum(fOptics & fMRI)
-    size_sum = np.sum(fOptics)
+    intersection = np.count_nonzero(A & B)
+    size_A = np.count_nonzero(A)
+    size_B = np.count_nonzero(B)
     
-    if size_sum == 0:
-        # Avoid division by zero: if both masks are empty, define DICE as 1
-        return 1.0
+    if size_A == 0 or size_B == 0:
+        return 0.0  # no overlap possible
     
-    overlap =  intersection / size_sum
-    return overlap
-
+    return intersection / min(size_A, size_B)
 
 
 
@@ -173,6 +204,87 @@ def find_nearest_white(img, target):
     nearest_index = np.argmin(distances)
     return nonzero[nearest_index][0]
 
+
+def get_alignement_points_in_skeleton(itk_MRI_proj_skeleton, itk_Optics_skeleton, itk_Optical_mask, itk_mask_tumor, nb_MRI_keypoints):
+    
+    #Get tumor mask
+    contours_tumor, hierarchy = cv.findContours(itk.GetArrayFromImage(itk_mask_tumor), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+
+    #Get MRI skeleton components and keypoints as component centroids the closest to the tumor mask
+    np_MRI_skeleton = itk.GetArrayFromImage(itk_MRI_proj_skeleton).astype(np.uint8)
+    num_labels, labels, stats, centroids = cv.connectedComponentsWithStats(np_MRI_skeleton)
+    centroids = centroids[1:,:].astype(int) #remove background
+
+
+
+    #Calculate distance between the tumor contour and the centroid of each skeleton component
+    dist_to_tumor = []
+    for c in centroids:
+        dist_to_tumor.append(cv.pointPolygonTest(contours_tumor[0],(float(c[0]),float(c[1])),True))
+    dist_to_tumor = np.asarray(dist_to_tumor)
+
+    #Only keep the first 3 keypoints closest to the tumor (inside or the closest to the tumor: max signed distance -> inside (positive), outside: negative))
+    np_kp_to_keep = np.minimum(nb_MRI_keypoints,centroids.shape[0])
+    id_max = np.argsort(dist_to_tumor)[-np_kp_to_keep:]
+    centroids = centroids[id_max,:]
+
+
+    kpts_MRI_tumor_phys = []
+    kpts_MRI_tumor = []
+    for c in centroids:
+        kpts_MRI_tumor.append(c)
+        kpts_MRI_tumor_phys.append(itk_mask_tumor.TransformIndexToPhysicalPoint([int(c[0]), int(c[1])]))
+
+
+    # kpts_MRI_tumor_phys = []
+    # kpts_MRI_tumor = []
+    # for i in range(id_max.shape[0]):
+    #     # coords for component i
+    #     coords = np.column_stack(np.where(labels == id_max[i]))
+
+    #     # centroid (float)
+    #     centroid = coords.mean(axis=0)   # (cy, cx)
+
+    #     # compute distances
+    #     dists = np.linalg.norm(coords - centroid, axis=1)
+
+    #     # closest pixel
+    #     P = coords[np.argmin(dists)]   
+    #     kpts_MRI_tumor.append(P)
+    #     kpts_MRI_tumor_phys.append(itk_mask_tumor.TransformIndexToPhysicalPoint([int(P[0]), int(P[1])]))
+
+
+
+
+    #Get Optical skeleton components and define the optical keypoint as component centroid the closest to the center of the img mask
+    np_optics_skeleton = itk.GetArrayFromImage(itk_Optics_skeleton).astype(np.uint8)
+    np_optics_mask = itk.GetArrayFromImage(itk_Optical_mask).astype(np.uint8)
+
+    #Calculate mask centroid
+    ys, xs = np.where(np_optics_mask > 0) 
+    centroid_mask = (int(xs.mean()), int(ys.mean()))
+
+    #Calculate centroids for each skeleton component
+    num_labels, labels, stats, centroids = cv.connectedComponentsWithStats(np_optics_skeleton)
+    centroids = centroids[1:,:].astype(int) #remove background
+
+
+    #Calculate distance between component centroid and mask centroid
+    dist_to_center = []
+    for c in centroids:
+        dist_to_center.append(cv.norm(centroid_mask - c, cv.NORM_L2))
+    dist_to_center = np.asarray(dist_to_center)
+
+    
+
+    
+    
+    kp_Optics = [int(centroids[np.argmin(dist_to_center),0]), int(centroids[np.argmin(dist_to_center),1])]
+    kp_Optics_phys = itk_mask_tumor.TransformIndexToPhysicalPoint(kp_Optics)
+
+
+    return kp_Optics, kp_Optics_phys, kpts_MRI_tumor, kpts_MRI_tumor_phys
 
 
 def get_alignment_points(itk_optical_mask, itk_optical_skeleton, itk_MRI_skeleton, itk_tumor_mask, kpts_MRI_tumor = None, kp_Optics = None, touch_vessel= False):
@@ -830,7 +942,15 @@ def create_MRI_projection_np(MRI_vol, brain_surface, tumor, Projection="Transver
             proj[i,j] = np.max(data_MRI[idx])
 
 
+
+
+    #Apply closing to remove holes in projection
+    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(3,3))
+    proj = cv.morphologyEx(proj, op=cv.MORPH_CLOSE, kernel=kernel)
+
+
     mask_MRI[proj>0] = 1
+
 
     return proj, mask_MRI, mask_tumor
 
@@ -944,6 +1064,24 @@ def MRI_volume_registration(fixed_img,
     
 
 
+def euclidean_distance(pt1, pt2, reso_mm):
+    return reso_mm*np.sqrt((pt2[1]-pt1[1])**2 + (pt2[0]-pt1[0])**2)
+
+
+def get_max_size_mask_mm(mask, reso_mm):
+
+    #Get min area rectangle around surgical window
+    contours, hierarchy = cv.findContours(np.copy(mask), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    rect = cv.minAreaRect(contours[0])
+    box = cv.boxPoints(rect)
+    box = np.intp(box)
+
+    #Get rect dimension in px
+
+    max_size_surgical_window_mm = np.array([euclidean_distance(box[1],box[0],reso_mm), euclidean_distance(box[2],box[1],reso_mm)]).max()
+
+    return max_size_surgical_window_mm
+
 def get_final_registration_metrics(file, key):
     result = np.nan
     with open(file) as input_data:
@@ -1039,6 +1177,7 @@ def get_Surface_mask(filename, kernel_size = 10):
     # itk.imwrite(mask_surface,dirname+'/surface_mask.nii.gz')
     # # Write volume mask
     # itk.imwrite(brain_mask_dilate,dirname+'/volume_mask.nii.gz')
+        
         
   
 def apply_brain_mask(filename,

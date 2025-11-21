@@ -133,6 +133,7 @@ class WorkerThread(QRunnable):
     #MRI projection
     def MRI_projection_process(self):
         error = main_get_MRI_projection(self.Mypath, self.params)
+        print("worker::MRI_projection_process "+error)
         return error
 
     #Blood vessel enhancement
@@ -257,7 +258,7 @@ class WorkerThread(QRunnable):
 
             #Blood vessel enhancement
             case self.process_idx.Blood_vessel_enhancement:
-                error,proj1 = main_plot_vessel_skeletons(self.Mypath)
+                error,proj1 = main_plot_vessel_skeletons(self.Mypath, self.params)
 
 
 

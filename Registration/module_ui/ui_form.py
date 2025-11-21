@@ -18,7 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QGridLayout,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QSizePolicy, QSlider, QTabWidget,
-    QVBoxLayout, QWidget)
+    QWidget)
 
 from module_ui.plot_functions import MatplotlibWidget
 
@@ -27,8 +27,45 @@ class Ui_main(object):
         if not main.objectName():
             main.setObjectName(u"main")
         main.resize(1019, 586)
-        self.verticalLayout = QVBoxLayout(main)
-        self.verticalLayout.setObjectName(u"verticalLayout")
+        self.gridLayout_9 = QGridLayout(main)
+        self.gridLayout_9.setObjectName(u"gridLayout_9")
+        self._infoData = QLabel(main)
+        self._infoData.setObjectName(u"_infoData")
+
+        self.gridLayout_9.addWidget(self._infoData, 3, 0, 1, 1)
+
+        self.widget_2 = QWidget(main)
+        self.widget_2.setObjectName(u"widget_2")
+        self.gridLayout_3 = QGridLayout(self.widget_2)
+        self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self._display = MatplotlibWidget(self.widget_2)
+        self._display.setObjectName(u"_display")
+
+        self.gridLayout_3.addWidget(self._display, 1, 0, 2, 1)
+
+        self._slider_legend = QLabel(self.widget_2)
+        self._slider_legend.setObjectName(u"_slider_legend")
+        self._slider_legend.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_3.addWidget(self._slider_legend, 2, 1, 1, 1)
+
+        self._param_display = QSlider(self.widget_2)
+        self._param_display.setObjectName(u"_param_display")
+        self._param_display.setOrientation(Qt.Orientation.Vertical)
+
+        self.gridLayout_3.addWidget(self._param_display, 1, 1, 1, 1)
+
+        self._display_title = QLabel(self.widget_2)
+        self._display_title.setObjectName(u"_display_title")
+        self._display_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_3.addWidget(self._display_title, 0, 0, 1, 1)
+
+        self.gridLayout_3.setRowStretch(1, 10)
+        self.gridLayout_3.setColumnStretch(0, 1)
+
+        self.gridLayout_9.addWidget(self.widget_2, 2, 0, 1, 1)
+
         self.widget = QWidget(main)
         self.widget.setObjectName(u"widget")
         self.gridLayout_5 = QGridLayout(self.widget)
@@ -44,7 +81,7 @@ class Ui_main(object):
         self.gridLayout_5.addWidget(self._HSI_imaging, 0, 1, 1, 1)
 
 
-        self.verticalLayout.addWidget(self.widget)
+        self.gridLayout_9.addWidget(self.widget, 0, 0, 1, 1)
 
         self.tabWidget = QTabWidget(main)
         self.tabWidget.setObjectName(u"tabWidget")
@@ -100,27 +137,39 @@ class Ui_main(object):
         self.tabWidget.addTab(self.tab_fMRI_registration, "")
         self.tab_MRI_projection = QWidget()
         self.tab_MRI_projection.setObjectName(u"tab_MRI_projection")
-        self.horizontalLayout_4 = QHBoxLayout(self.tab_MRI_projection)
-        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
+        self.gridLayout_10 = QGridLayout(self.tab_MRI_projection)
+        self.gridLayout_10.setObjectName(u"gridLayout_10")
         self._process_all_MRI_projection = QPushButton(self.tab_MRI_projection)
         self._process_all_MRI_projection.setObjectName(u"_process_all_MRI_projection")
 
-        self.horizontalLayout_4.addWidget(self._process_all_MRI_projection)
+        self.gridLayout_10.addWidget(self._process_all_MRI_projection, 0, 0, 1, 2)
 
         self._process_tumor_segmentation = QPushButton(self.tab_MRI_projection)
         self._process_tumor_segmentation.setObjectName(u"_process_tumor_segmentation")
 
-        self.horizontalLayout_4.addWidget(self._process_tumor_segmentation)
+        self.gridLayout_10.addWidget(self._process_tumor_segmentation, 1, 0, 1, 2)
 
-        self._process_MRI_projection = QPushButton(self.tab_MRI_projection)
+        self.groupBox_3 = QGroupBox(self.tab_MRI_projection)
+        self.groupBox_3.setObjectName(u"groupBox_3")
+        self.gridLayout_11 = QGridLayout(self.groupBox_3)
+        self.gridLayout_11.setObjectName(u"gridLayout_11")
+        self._process_MRI_projection = QPushButton(self.groupBox_3)
         self._process_MRI_projection.setObjectName(u"_process_MRI_projection")
 
-        self.horizontalLayout_4.addWidget(self._process_MRI_projection)
+        self.gridLayout_11.addWidget(self._process_MRI_projection, 0, 0, 1, 1)
 
-        self._projection_basis_choice = QComboBox(self.tab_MRI_projection)
+        self._projection_basis_choice = QComboBox(self.groupBox_3)
         self._projection_basis_choice.setObjectName(u"_projection_basis_choice")
 
-        self.horizontalLayout_4.addWidget(self._projection_basis_choice)
+        self.gridLayout_11.addWidget(self._projection_basis_choice, 1, 0, 1, 1)
+
+        self._projection_axis_passing_through = QComboBox(self.groupBox_3)
+        self._projection_axis_passing_through.setObjectName(u"_projection_axis_passing_through")
+
+        self.gridLayout_11.addWidget(self._projection_axis_passing_through, 2, 0, 1, 1)
+
+
+        self.gridLayout_10.addWidget(self.groupBox_3, 2, 0, 2, 2)
 
         self.tabWidget.addTab(self.tab_MRI_projection, "")
         self.tab_blood_vessel_enhancement = QWidget()
@@ -310,50 +359,12 @@ class Ui_main(object):
 
         self.tabWidget.addTab(self._tab_registration_validation, "")
 
-        self.verticalLayout.addWidget(self.tabWidget)
+        self.gridLayout_9.addWidget(self.tabWidget, 1, 0, 1, 1)
 
-        self.widget_2 = QWidget(main)
-        self.widget_2.setObjectName(u"widget_2")
-        self.gridLayout_3 = QGridLayout(self.widget_2)
-        self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self._display = MatplotlibWidget(self.widget_2)
-        self._display.setObjectName(u"_display")
-
-        self.gridLayout_3.addWidget(self._display, 1, 0, 2, 1)
-
-        self._slider_legend = QLabel(self.widget_2)
-        self._slider_legend.setObjectName(u"_slider_legend")
-        self._slider_legend.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout_3.addWidget(self._slider_legend, 2, 1, 1, 1)
-
-        self._param_display = QSlider(self.widget_2)
-        self._param_display.setObjectName(u"_param_display")
-        self._param_display.setOrientation(Qt.Orientation.Vertical)
-
-        self.gridLayout_3.addWidget(self._param_display, 1, 1, 1, 1)
-
-        self._display_title = QLabel(self.widget_2)
-        self._display_title.setObjectName(u"_display_title")
-        self._display_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout_3.addWidget(self._display_title, 0, 0, 1, 1)
-
-        self.gridLayout_3.setRowStretch(1, 10)
-        self.gridLayout_3.setColumnStretch(0, 1)
-
-        self.verticalLayout.addWidget(self.widget_2)
-
-        self._infoData = QLabel(main)
-        self._infoData.setObjectName(u"_infoData")
-
-        self.verticalLayout.addWidget(self._infoData)
-
-        self.verticalLayout.setStretch(2, 10)
 
         self.retranslateUi(main)
 
-        self.tabWidget.setCurrentIndex(3)
+        self.tabWidget.setCurrentIndex(2)
 
 
         QMetaObject.connectSlotsByName(main)
@@ -361,6 +372,9 @@ class Ui_main(object):
 
     def retranslateUi(self, main):
         main.setWindowTitle(QCoreApplication.translate("main", u"main", None))
+        self._infoData.setText("")
+        self._slider_legend.setText(QCoreApplication.translate("main", u"Alpha (%)", None))
+        self._display_title.setText("")
         self._getDataPath.setText(QCoreApplication.translate("main", u"...", None))
         self._HSI_imaging.setText(QCoreApplication.translate("main", u"HSI imaging", None))
         self._extract_brain_surface.setText(QCoreApplication.translate("main", u"Extract brain surface", None))
@@ -373,7 +387,8 @@ class Ui_main(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_fMRI_registration), QCoreApplication.translate("main", u"Register fMRI on T1", None))
         self._process_all_MRI_projection.setText(QCoreApplication.translate("main", u"Run all", None))
         self._process_tumor_segmentation.setText(QCoreApplication.translate("main", u"Brain tumor segmentation", None))
-        self._process_MRI_projection.setText(QCoreApplication.translate("main", u"2D MRI projection", None))
+        self.groupBox_3.setTitle(QCoreApplication.translate("main", u"MRI projection", None))
+        self._process_MRI_projection.setText(QCoreApplication.translate("main", u"Start process", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_MRI_projection), QCoreApplication.translate("main", u"Create 2D MRI projection", None))
         self.groupBox.setTitle(QCoreApplication.translate("main", u"MRI skeleton", None))
         self.label_6.setText(QCoreApplication.translate("main", u"Max vessel size (mm)", None))
@@ -403,8 +418,5 @@ class Ui_main(object):
         self._calculate_registration_error.setText(QCoreApplication.translate("main", u"Calculate registration error (mm)", None))
         self._results_registration.setText("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self._tab_registration_validation), QCoreApplication.translate("main", u"Registration validation", None))
-        self._slider_legend.setText(QCoreApplication.translate("main", u"Alpha (%)", None))
-        self._display_title.setText("")
-        self._infoData.setText("")
     # retranslateUi
 

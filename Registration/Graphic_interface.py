@@ -52,6 +52,11 @@ class main(QWidget):
         self.ui._projection_basis_choice.addItem("Z axis")
         self.ui._projection_basis_choice.setCurrentIndex(1)
 
+        #Projection axis passing through
+        self.ui._projection_axis_passing_through.addItem("Axis passing through MRI origin")
+        self.ui._projection_axis_passing_through.addItem("Axis passing through MRI center of mass")
+        self.ui._projection_axis_passing_through.setCurrentIndex(0)
+
 
         #Process idx
         self.process_idx = Process_idx()
@@ -97,6 +102,7 @@ class main(QWidget):
         self.ui._process_all_MRI_projection.clicked.connect(self.process_all_MRI_projection)
         # self.ui._projection_slice_order.currentTextChanged.connect(self.on_Projection_slice_order_changed)
         self.ui._projection_basis_choice.currentTextChanged.connect(self.on_projection_basis_choice_changed)
+        self.ui._projection_axis_passing_through.currentTextChanged.connect(self.on_projection_axis_passing_through_changed)
 
 
         #Connect blood vessel enhancement
@@ -236,6 +242,7 @@ class main(QWidget):
         # self.ui._projection_choice.setCurrentText(self.params.projection_type)
         # self.ui._projection_slice_order.setCurrentText(self.params.projection_slice_order)
         self.ui._projection_basis_choice.setCurrentText(self.params.projection_base_axis)
+        self.ui._projection_axis_passing_through.setCurrentText(self.params.axis_projection)
 
 
 
@@ -448,6 +455,9 @@ class main(QWidget):
 
     def on_projection_basis_choice_changed(self, projection_basis):
         self.params.projection_base_axis = projection_basis
+
+    def on_projection_axis_passing_through_changed(self, axis_projection):
+        self.params.axis_projection = axis_projection
     ########################
     # Blood vessel enhancement
     ########################

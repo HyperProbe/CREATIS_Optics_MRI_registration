@@ -122,7 +122,7 @@ def visualize_segmentation(modality_file: str, segmentation_file: str, slice_p=0
 
 
 
-def preprocess_exam_in_brats_style_ITK(filename_t1, filename_flair, filename_t1_bet, output_dir):
+def preprocess_exam_in_brats_style_ITK(filename_t1, filename_flair, filename_t1_bet, filename_mask_brain, output_dir):
 
 
     #Load files
@@ -160,11 +160,6 @@ def preprocess_exam_in_brats_style_ITK(filename_t1, filename_flair, filename_t1_
 
 
     #Apply brain mask to FLAIR
-    filename_mask_brain = output_dir+"volume_mask.nii.gz"
-
-
-
-    #Appy mask on T1
     filename_flair = apply_brain_mask(filename_flair,filename_mask_brain, output_dir + "r_FLAIR_bet.nii.gz")
 
 
