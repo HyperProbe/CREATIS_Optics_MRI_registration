@@ -107,7 +107,7 @@ def overlap_coefficient(A, B):
     if size_A == 0 or size_B == 0:
         return 0.0  # no overlap possible
     
-    return intersection / min(size_A, size_B)
+    return float(intersection / min(size_A, size_B))
 
 
 
@@ -287,17 +287,76 @@ def get_alignement_points_in_skeleton(itk_MRI_proj_skeleton, itk_Optics_skeleton
     return kp_Optics, kp_Optics_phys, kpts_MRI_tumor, kpts_MRI_tumor_phys
 
 
-def get_alignment_points(itk_optical_mask, itk_optical_skeleton, itk_MRI_skeleton, itk_tumor_mask, kpts_MRI_tumor = None, kp_Optics = None, touch_vessel= False):
+
+def resize_rect(x, y, w, h, f):
+    # Center of the rectangle
+    cx = x + w / 2.0
+    cy = y + h / 2.0
+
+    # New size
+    new_w = w * f
+    new_h = h * f
+
+    # New top-left corner
+    new_x = int(cx - new_w / 2.0)
+    new_y = int(cy - new_h / 2.0)
+
+    return new_x, new_y, int(new_w), int(new_h)
+
+
+
+def get_regular_skeleton_points_in_rect(skel, rect, spacing_mm, min_spacing_mm):
+    """
+    skel : binary skeleton (0/255)
+    rect : (xmin, xmax, ymin, ymax) in pixel coordinates
+    spacing_mm : mm per pixel (float)
+    min_spacing_mm : minimal spacing between points (in mm)
+    """
+    xmin, ymin, w, h = rect
+    xmax = xmin+w
+    ymax = ymin+h
+    # clamp
+    xmin = max(0, xmin)
+    ymin = max(0, ymin)
+    xmax = min(skel.shape[1], xmax)
+    ymax = min(skel.shape[0], ymax)
+
+    # Extract skeleton points inside the rectangle
+    region = skel[ymin:ymax, xmin:xmax]
+    ys, xs = np.where(region > 0)
+    if len(xs) == 0:
+        return np.empty((0,2), dtype=float)
+
+    # Convert to global coordinates
+    pts_px = np.column_stack([xs + xmin, ys + ymin]).astype(float)
+
+    # Convert minimal spacing into pixels
+    min_spacing_px = min_spacing_mm / spacing_mm
+
+    # Storage for selected points
+    selected = []
+
+    for p in pts_px:
+        if not selected:
+            selected.append(p)
+        else:
+            # Compute distance to all previously selected points
+            d = np.linalg.norm(np.array(selected) - p, axis=1)
+            if np.all(d >= min_spacing_px):
+                selected.append(p)
+
+    return selected
+
+def get_alignment_points(itk_optical_mask, itk_optical_skeleton, itk_MRI_skeleton, itk_tumor_mask, kpts_MRI_tumor = None, kp_Optics = None, space_between_kpt_mm = 8, enlarge_tumor_roi_factor = 1):
     
     if kp_Optics == None:
         #Get center of optical mask
         center_Optics = [ np.average(indices) for indices in np.where(itk.GetArrayFromImage(itk_optical_mask) > 0) ]
         kp_Optics = [int(center_Optics[1]), int(center_Optics[0])]
 
-    if touch_vessel:
-        vessel_img = itk.GetArrayFromImage(itk_optical_skeleton)
-        temp = find_nearest_white(vessel_img, kp_Optics)
-        kp_Optics = [int(temp[0]), int(temp[1])]
+    vessel_img = itk.GetArrayFromImage(itk_optical_skeleton)
+    temp = find_nearest_white(vessel_img, kp_Optics)
+    kp_Optics = [int(temp[0]), int(temp[1])]
 
 
     if kpts_MRI_tumor == None:
@@ -307,38 +366,24 @@ def get_alignment_points(itk_optical_mask, itk_optical_skeleton, itk_MRI_skeleto
         #Bounding box of the contour
         x,y,w,h = cv.boundingRect(contours_tumor[0]) #x,y,w,h
 
-        #Get center of mass of tumor        
-        kpts_MRI_tumor = []
-        kpts_MRI_tumor.append(np.array([int(x+w/2), int(y+h/2)]))
-        kpts_MRI_tumor.append(np.array([int(x), int(y)]))
-        kpts_MRI_tumor.append(np.array([int(x), int(y+h)]))
-        kpts_MRI_tumor.append(np.array([int(x+w), int(y)]))
-        kpts_MRI_tumor.append(np.array([int(x+w), int(y+h)]))
-        
-        kpts_MRI_tumor.append(np.array([int(x), int(y+h/2)]))
-        kpts_MRI_tumor.append(np.array([int(x+w/2), int(y)]))
-        kpts_MRI_tumor.append(np.array([int(x+w), int(y+h/2)]))
-        kpts_MRI_tumor.append(np.array([int(x+w/2), int(y+h)]))
+        #resize tumor ROI rectangle
+        x, y, w, h = resize_rect(x, y, w, h, enlarge_tumor_roi_factor)
+        rect = (x,y,w,h)
 
-    if touch_vessel:
-        vessel_img = itk.GetArrayFromImage(itk_MRI_skeleton)
 
-        for i in range(len(kpts_MRI_tumor)):
-            temp = find_nearest_white(vessel_img, kpts_MRI_tumor[i])
-            kpts_MRI_tumor[i] = [int(temp[0]), int(temp[1])] 
+        #Get center of mass of tumor  
+        reso_MRI_mm = np.min(itk_MRI_skeleton.GetSpacing())
+        kpts_MRI_tumor = get_regular_skeleton_points_in_rect(itk.GetArrayFromImage(itk_MRI_skeleton), rect, reso_MRI_mm, space_between_kpt_mm)
 
-    
+
     kp_Optics_phys = itk_tumor_mask.TransformIndexToPhysicalPoint(kp_Optics)
 
     kpts_MRI_tumor_phys = []
     for i in range(len(kpts_MRI_tumor)):
+        # kpts_MRI_tumor[i] = np.asarray(kpts_MRI_tumor[i]).astype(int) 
         kpts_MRI_tumor_phys.append(itk_tumor_mask.TransformIndexToPhysicalPoint([int(kpts_MRI_tumor[i][0]), int(kpts_MRI_tumor[i][1])]))
 
-
     return kp_Optics, kp_Optics_phys, kpts_MRI_tumor, kpts_MRI_tumor_phys
-
-
-
 
 
 
@@ -853,7 +898,7 @@ def create_simple_MRI_projection(MRI_vol, brain_surface, Projection, id_proj):
     return proj
 
 
-def create_MRI_projection_np(MRI_vol, brain_surface, tumor, Projection="Transverse", remove_artifacts=False):
+def create_MRI_projection_np(MRI_vol, brain_surface, tumor, Projection="Transverse", remove_artifacts=False, project_on_tumor = False):
 
 
 
@@ -881,15 +926,14 @@ def create_MRI_projection_np(MRI_vol, brain_surface, tumor, Projection="Transver
     center_of_mass_tumor = ndimage.center_of_mass(tumor)
     center_of_mass_brain = ndimage.center_of_mass(brain_surface)
 
-
-    # if int(center_of_mass_tumor[id_axis])>tumor.shape[id_axis]/2:
-    id_proj = 0 
-    # if center_of_mass_tumor[id_axis]>center_of_mass_brain[id_axis]:
-    #     id_proj = -1
-    # else:
-    #     id_proj = 0
-    # print("[create_MRI_projection_np] id proj",id_proj)
-
+    if project_on_tumor:
+        if int(center_of_mass_tumor[id_axis])>tumor.shape[id_axis]/2:
+        # if center_of_mass_tumor[id_axis]>center_of_mass_brain[id_axis]:
+            id_proj = -1
+        else:
+            id_proj = 0
+    else:
+        id_proj = 0 
 
 
     for i in range(proj.shape[0]):

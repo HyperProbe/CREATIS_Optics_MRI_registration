@@ -6,58 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1019</width>
+    <width>1148</width>
     <height>586</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>main</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout_9">
-   <item row="3" column="0">
-    <widget class="QLabel" name="_infoData">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0">
-    <widget class="QWidget" name="widget_2" native="true">
-     <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,10,0" columnstretch="1,0">
-      <item row="1" column="0" rowspan="2">
-       <widget class="MatplotlibWidget" name="_display" native="true"/>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="_slider_legend">
-        <property name="text">
-         <string>Alpha (%)</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QSlider" name="_param_display">
-        <property name="orientation">
-         <enum>Qt::Orientation::Vertical</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="_display_title">
-        <property name="text">
-         <string/>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item row="0" column="0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,10,0">
+   <item>
     <widget class="QWidget" name="widget" native="true">
      <layout class="QGridLayout" name="gridLayout_5">
       <item row="0" column="0">
@@ -77,10 +34,10 @@
      </layout>
     </widget>
    </item>
-   <item row="1" column="0">
+   <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>2</number>
+      <number>4</number>
      </property>
      <widget class="QWidget" name="_tab_brain_extraction">
       <attribute name="title">
@@ -168,8 +125,11 @@
          <property name="title">
           <string>MRI projection</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout_11">
-          <item row="0" column="0">
+         <layout class="QGridLayout" name="gridLayout_11" columnstretch="1,0">
+          <item row="2" column="0">
+           <widget class="QComboBox" name="_projection_axis_passing_through"/>
+          </item>
+          <item row="0" column="0" colspan="2">
            <widget class="QPushButton" name="_process_MRI_projection">
             <property name="text">
              <string>Start process</string>
@@ -179,8 +139,24 @@
           <item row="1" column="0">
            <widget class="QComboBox" name="_projection_basis_choice"/>
           </item>
-          <item row="2" column="0">
-           <widget class="QComboBox" name="_projection_axis_passing_through"/>
+          <item row="2" column="1">
+           <widget class="QComboBox" name="_projection_type"/>
+          </item>
+          <item row="1" column="1">
+           <widget class="QWidget" name="widget_5" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_5">
+             <item>
+              <widget class="QLabel" name="label_13">
+               <property name="text">
+                <string>Kernel size for external mask erosion (mm)</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="_MRI_erode_edge_mm"/>
+             </item>
+            </layout>
+           </widget>
           </item>
          </layout>
         </widget>
@@ -278,8 +254,8 @@
           <set>Qt::AlignmentFlag::AlignCenter</set>
          </property>
          <layout class="QGridLayout" name="gridLayout_8">
-          <item row="1" column="0">
-           <widget class="QLineEdit" name="_optics_thresh"/>
+          <item row="1" column="2">
+           <widget class="QLineEdit" name="_max_vessel_Optics"/>
           </item>
           <item row="0" column="1">
            <widget class="QLabel" name="label_3">
@@ -290,12 +266,6 @@
              <set>Qt::AlignmentFlag::AlignCenter</set>
             </property>
            </widget>
-          </item>
-          <item row="1" column="2">
-           <widget class="QLineEdit" name="_max_vessel_Optics"/>
-          </item>
-          <item row="1" column="1">
-           <widget class="QLineEdit" name="_min_vessel_Optics"/>
           </item>
           <item row="0" column="0">
            <widget class="QLabel" name="label_7">
@@ -317,10 +287,36 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="3">
+          <item row="0" column="3">
+           <widget class="QLabel" name="label_10">
+            <property name="text">
+             <string>Kernal size for specular reflection (mm)</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="_min_vessel_Optics"/>
+          </item>
+          <item row="1" column="5">
            <widget class="QPushButton" name="_manual_optics_vessel_selection">
             <property name="text">
              <string>Manual vessel selection</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLineEdit" name="_optics_thresh"/>
+          </item>
+          <item row="1" column="3">
+           <widget class="QLineEdit" name="_kernel_specular_reflection"/>
+          </item>
+          <item row="1" column="4">
+           <widget class="QLineEdit" name="_kernel_exterior_mask_mm"/>
+          </item>
+          <item row="0" column="4">
+           <widget class="QLabel" name="label_11">
+            <property name="text">
+             <string>Kernel size for external mask erosion (mm)</string>
             </property>
            </widget>
           </item>
@@ -334,6 +330,38 @@
        <string>Optics to MRI registration</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_6">
+       <item row="2" column="1" colspan="2">
+        <widget class="QWidget" name="widget_4" native="true">
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QLabel" name="label_12">
+            <property name="text">
+             <string>Enlarge tumor ROI factor</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="_tumor_ROI_enlarge_factor"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QWidget" name="widget_3" native="true">
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QLabel" name="label_9">
+            <property name="text">
+             <string>Space between kpt (mm)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="_space_between_kpt_mm"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
        <item row="1" column="0">
         <widget class="QPushButton" name="_check_init_points">
          <property name="text">
@@ -341,24 +369,31 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="1">
-        <widget class="QPushButton" name="_choose_init_points">
+       <item row="2" column="3">
+        <widget class="QCheckBox" name="_use_custom_registration_metric">
          <property name="text">
-          <string>Choose new initialization points</string>
+          <string>Use custom metric</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="2">
+       <item row="0" column="0" colspan="4">
+        <widget class="QPushButton" name="_process_optics_to_MRI_registration">
+         <property name="text">
+          <string>Process optics to MRI registration</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="3">
         <widget class="QPushButton" name="_test_manual_alignement">
          <property name="text">
           <string>Test manual aligment</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="0" colspan="3">
-        <widget class="QPushButton" name="_process_optics_to_MRI_registration">
+       <item row="1" column="1" colspan="2">
+        <widget class="QPushButton" name="_choose_init_points">
          <property name="text">
-          <string>Process optics to MRI registration</string>
+          <string>Choose new initialization points</string>
          </property>
         </widget>
        </item>
@@ -437,6 +472,62 @@
        </item>
       </layout>
      </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget_2" native="true">
+     <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0" columnstretch="1,0">
+      <item row="0" column="0">
+       <widget class="QLabel" name="_display_title">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="_slider_legend">
+        <property name="text">
+         <string>Alpha (%)</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSlider" name="_param_display">
+        <property name="orientation">
+         <enum>Qt::Orientation::Vertical</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" rowspan="2">
+       <widget class="MatplotlibWidget" name="_display" native="true"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget_6" native="true">
+     <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="10,0">
+      <item>
+       <widget class="QLabel" name="_infoData">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="_advanced_settings">
+        <property name="text">
+         <string>Advanced settings</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
   </layout>

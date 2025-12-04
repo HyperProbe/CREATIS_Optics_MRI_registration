@@ -18,7 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QGridLayout,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QSizePolicy, QSlider, QTabWidget,
-    QWidget)
+    QVBoxLayout, QWidget)
 
 from module_ui.plot_functions import MatplotlibWidget
 
@@ -26,46 +26,9 @@ class Ui_main(object):
     def setupUi(self, main):
         if not main.objectName():
             main.setObjectName(u"main")
-        main.resize(1019, 586)
-        self.gridLayout_9 = QGridLayout(main)
-        self.gridLayout_9.setObjectName(u"gridLayout_9")
-        self._infoData = QLabel(main)
-        self._infoData.setObjectName(u"_infoData")
-
-        self.gridLayout_9.addWidget(self._infoData, 3, 0, 1, 1)
-
-        self.widget_2 = QWidget(main)
-        self.widget_2.setObjectName(u"widget_2")
-        self.gridLayout_3 = QGridLayout(self.widget_2)
-        self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self._display = MatplotlibWidget(self.widget_2)
-        self._display.setObjectName(u"_display")
-
-        self.gridLayout_3.addWidget(self._display, 1, 0, 2, 1)
-
-        self._slider_legend = QLabel(self.widget_2)
-        self._slider_legend.setObjectName(u"_slider_legend")
-        self._slider_legend.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout_3.addWidget(self._slider_legend, 2, 1, 1, 1)
-
-        self._param_display = QSlider(self.widget_2)
-        self._param_display.setObjectName(u"_param_display")
-        self._param_display.setOrientation(Qt.Orientation.Vertical)
-
-        self.gridLayout_3.addWidget(self._param_display, 1, 1, 1, 1)
-
-        self._display_title = QLabel(self.widget_2)
-        self._display_title.setObjectName(u"_display_title")
-        self._display_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout_3.addWidget(self._display_title, 0, 0, 1, 1)
-
-        self.gridLayout_3.setRowStretch(1, 10)
-        self.gridLayout_3.setColumnStretch(0, 1)
-
-        self.gridLayout_9.addWidget(self.widget_2, 2, 0, 1, 1)
-
+        main.resize(1148, 586)
+        self.verticalLayout = QVBoxLayout(main)
+        self.verticalLayout.setObjectName(u"verticalLayout")
         self.widget = QWidget(main)
         self.widget.setObjectName(u"widget")
         self.gridLayout_5 = QGridLayout(self.widget)
@@ -81,7 +44,7 @@ class Ui_main(object):
         self.gridLayout_5.addWidget(self._HSI_imaging, 0, 1, 1, 1)
 
 
-        self.gridLayout_9.addWidget(self.widget, 0, 0, 1, 1)
+        self.verticalLayout.addWidget(self.widget)
 
         self.tabWidget = QTabWidget(main)
         self.tabWidget.setObjectName(u"tabWidget")
@@ -153,21 +116,44 @@ class Ui_main(object):
         self.groupBox_3.setObjectName(u"groupBox_3")
         self.gridLayout_11 = QGridLayout(self.groupBox_3)
         self.gridLayout_11.setObjectName(u"gridLayout_11")
+        self._projection_axis_passing_through = QComboBox(self.groupBox_3)
+        self._projection_axis_passing_through.setObjectName(u"_projection_axis_passing_through")
+
+        self.gridLayout_11.addWidget(self._projection_axis_passing_through, 2, 0, 1, 1)
+
         self._process_MRI_projection = QPushButton(self.groupBox_3)
         self._process_MRI_projection.setObjectName(u"_process_MRI_projection")
 
-        self.gridLayout_11.addWidget(self._process_MRI_projection, 0, 0, 1, 1)
+        self.gridLayout_11.addWidget(self._process_MRI_projection, 0, 0, 1, 2)
 
         self._projection_basis_choice = QComboBox(self.groupBox_3)
         self._projection_basis_choice.setObjectName(u"_projection_basis_choice")
 
         self.gridLayout_11.addWidget(self._projection_basis_choice, 1, 0, 1, 1)
 
-        self._projection_axis_passing_through = QComboBox(self.groupBox_3)
-        self._projection_axis_passing_through.setObjectName(u"_projection_axis_passing_through")
+        self._projection_type = QComboBox(self.groupBox_3)
+        self._projection_type.setObjectName(u"_projection_type")
 
-        self.gridLayout_11.addWidget(self._projection_axis_passing_through, 2, 0, 1, 1)
+        self.gridLayout_11.addWidget(self._projection_type, 2, 1, 1, 1)
 
+        self.widget_5 = QWidget(self.groupBox_3)
+        self.widget_5.setObjectName(u"widget_5")
+        self.horizontalLayout_5 = QHBoxLayout(self.widget_5)
+        self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
+        self.label_13 = QLabel(self.widget_5)
+        self.label_13.setObjectName(u"label_13")
+
+        self.horizontalLayout_5.addWidget(self.label_13)
+
+        self._MRI_erode_edge_mm = QLineEdit(self.widget_5)
+        self._MRI_erode_edge_mm.setObjectName(u"_MRI_erode_edge_mm")
+
+        self.horizontalLayout_5.addWidget(self._MRI_erode_edge_mm)
+
+
+        self.gridLayout_11.addWidget(self.widget_5, 1, 1, 1, 1)
+
+        self.gridLayout_11.setColumnStretch(0, 1)
 
         self.gridLayout_10.addWidget(self.groupBox_3, 2, 0, 2, 2)
 
@@ -240,26 +226,16 @@ class Ui_main(object):
         self.groupBox_2.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.gridLayout_8 = QGridLayout(self.groupBox_2)
         self.gridLayout_8.setObjectName(u"gridLayout_8")
-        self._optics_thresh = QLineEdit(self.groupBox_2)
-        self._optics_thresh.setObjectName(u"_optics_thresh")
+        self._max_vessel_Optics = QLineEdit(self.groupBox_2)
+        self._max_vessel_Optics.setObjectName(u"_max_vessel_Optics")
 
-        self.gridLayout_8.addWidget(self._optics_thresh, 1, 0, 1, 1)
+        self.gridLayout_8.addWidget(self._max_vessel_Optics, 1, 2, 1, 1)
 
         self.label_3 = QLabel(self.groupBox_2)
         self.label_3.setObjectName(u"label_3")
         self.label_3.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.gridLayout_8.addWidget(self.label_3, 0, 1, 1, 1)
-
-        self._max_vessel_Optics = QLineEdit(self.groupBox_2)
-        self._max_vessel_Optics.setObjectName(u"_max_vessel_Optics")
-
-        self.gridLayout_8.addWidget(self._max_vessel_Optics, 1, 2, 1, 1)
-
-        self._min_vessel_Optics = QLineEdit(self.groupBox_2)
-        self._min_vessel_Optics.setObjectName(u"_min_vessel_Optics")
-
-        self.gridLayout_8.addWidget(self._min_vessel_Optics, 1, 1, 1, 1)
 
         self.label_7 = QLabel(self.groupBox_2)
         self.label_7.setObjectName(u"label_7")
@@ -273,10 +249,40 @@ class Ui_main(object):
 
         self.gridLayout_8.addWidget(self.label_5, 0, 2, 1, 1)
 
+        self.label_10 = QLabel(self.groupBox_2)
+        self.label_10.setObjectName(u"label_10")
+
+        self.gridLayout_8.addWidget(self.label_10, 0, 3, 1, 1)
+
+        self._min_vessel_Optics = QLineEdit(self.groupBox_2)
+        self._min_vessel_Optics.setObjectName(u"_min_vessel_Optics")
+
+        self.gridLayout_8.addWidget(self._min_vessel_Optics, 1, 1, 1, 1)
+
         self._manual_optics_vessel_selection = QPushButton(self.groupBox_2)
         self._manual_optics_vessel_selection.setObjectName(u"_manual_optics_vessel_selection")
 
-        self.gridLayout_8.addWidget(self._manual_optics_vessel_selection, 1, 3, 1, 1)
+        self.gridLayout_8.addWidget(self._manual_optics_vessel_selection, 1, 5, 1, 1)
+
+        self._optics_thresh = QLineEdit(self.groupBox_2)
+        self._optics_thresh.setObjectName(u"_optics_thresh")
+
+        self.gridLayout_8.addWidget(self._optics_thresh, 1, 0, 1, 1)
+
+        self._kernel_specular_reflection = QLineEdit(self.groupBox_2)
+        self._kernel_specular_reflection.setObjectName(u"_kernel_specular_reflection")
+
+        self.gridLayout_8.addWidget(self._kernel_specular_reflection, 1, 3, 1, 1)
+
+        self._kernel_exterior_mask_mm = QLineEdit(self.groupBox_2)
+        self._kernel_exterior_mask_mm.setObjectName(u"_kernel_exterior_mask_mm")
+
+        self.gridLayout_8.addWidget(self._kernel_exterior_mask_mm, 1, 4, 1, 1)
+
+        self.label_11 = QLabel(self.groupBox_2)
+        self.label_11.setObjectName(u"label_11")
+
+        self.gridLayout_8.addWidget(self.label_11, 0, 4, 1, 1)
 
 
         self.gridLayout.addWidget(self.groupBox_2, 4, 0, 1, 7)
@@ -286,25 +292,64 @@ class Ui_main(object):
         self._tabMRI_optics_MRI_registration.setObjectName(u"_tabMRI_optics_MRI_registration")
         self.gridLayout_6 = QGridLayout(self._tabMRI_optics_MRI_registration)
         self.gridLayout_6.setObjectName(u"gridLayout_6")
+        self.widget_4 = QWidget(self._tabMRI_optics_MRI_registration)
+        self.widget_4.setObjectName(u"widget_4")
+        self.horizontalLayout_4 = QHBoxLayout(self.widget_4)
+        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
+        self.label_12 = QLabel(self.widget_4)
+        self.label_12.setObjectName(u"label_12")
+
+        self.horizontalLayout_4.addWidget(self.label_12)
+
+        self._tumor_ROI_enlarge_factor = QLineEdit(self.widget_4)
+        self._tumor_ROI_enlarge_factor.setObjectName(u"_tumor_ROI_enlarge_factor")
+
+        self.horizontalLayout_4.addWidget(self._tumor_ROI_enlarge_factor)
+
+
+        self.gridLayout_6.addWidget(self.widget_4, 2, 1, 1, 2)
+
+        self.widget_3 = QWidget(self._tabMRI_optics_MRI_registration)
+        self.widget_3.setObjectName(u"widget_3")
+        self.horizontalLayout = QHBoxLayout(self.widget_3)
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.label_9 = QLabel(self.widget_3)
+        self.label_9.setObjectName(u"label_9")
+
+        self.horizontalLayout.addWidget(self.label_9)
+
+        self._space_between_kpt_mm = QLineEdit(self.widget_3)
+        self._space_between_kpt_mm.setObjectName(u"_space_between_kpt_mm")
+
+        self.horizontalLayout.addWidget(self._space_between_kpt_mm)
+
+
+        self.gridLayout_6.addWidget(self.widget_3, 2, 0, 1, 1)
+
         self._check_init_points = QPushButton(self._tabMRI_optics_MRI_registration)
         self._check_init_points.setObjectName(u"_check_init_points")
 
         self.gridLayout_6.addWidget(self._check_init_points, 1, 0, 1, 1)
 
-        self._choose_init_points = QPushButton(self._tabMRI_optics_MRI_registration)
-        self._choose_init_points.setObjectName(u"_choose_init_points")
+        self._use_custom_registration_metric = QCheckBox(self._tabMRI_optics_MRI_registration)
+        self._use_custom_registration_metric.setObjectName(u"_use_custom_registration_metric")
 
-        self.gridLayout_6.addWidget(self._choose_init_points, 1, 1, 1, 1)
-
-        self._test_manual_alignement = QPushButton(self._tabMRI_optics_MRI_registration)
-        self._test_manual_alignement.setObjectName(u"_test_manual_alignement")
-
-        self.gridLayout_6.addWidget(self._test_manual_alignement, 1, 2, 1, 1)
+        self.gridLayout_6.addWidget(self._use_custom_registration_metric, 2, 3, 1, 1)
 
         self._process_optics_to_MRI_registration = QPushButton(self._tabMRI_optics_MRI_registration)
         self._process_optics_to_MRI_registration.setObjectName(u"_process_optics_to_MRI_registration")
 
-        self.gridLayout_6.addWidget(self._process_optics_to_MRI_registration, 0, 0, 1, 3)
+        self.gridLayout_6.addWidget(self._process_optics_to_MRI_registration, 0, 0, 1, 4)
+
+        self._test_manual_alignement = QPushButton(self._tabMRI_optics_MRI_registration)
+        self._test_manual_alignement.setObjectName(u"_test_manual_alignement")
+
+        self.gridLayout_6.addWidget(self._test_manual_alignement, 1, 3, 1, 1)
+
+        self._choose_init_points = QPushButton(self._tabMRI_optics_MRI_registration)
+        self._choose_init_points.setObjectName(u"_choose_init_points")
+
+        self.gridLayout_6.addWidget(self._choose_init_points, 1, 1, 1, 2)
 
         self.tabWidget.addTab(self._tabMRI_optics_MRI_registration, "")
         self.tab_display_results = QWidget()
@@ -359,12 +404,62 @@ class Ui_main(object):
 
         self.tabWidget.addTab(self._tab_registration_validation, "")
 
-        self.gridLayout_9.addWidget(self.tabWidget, 1, 0, 1, 1)
+        self.verticalLayout.addWidget(self.tabWidget)
 
+        self.widget_2 = QWidget(main)
+        self.widget_2.setObjectName(u"widget_2")
+        self.gridLayout_3 = QGridLayout(self.widget_2)
+        self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self._display_title = QLabel(self.widget_2)
+        self._display_title.setObjectName(u"_display_title")
+        self._display_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_3.addWidget(self._display_title, 0, 0, 1, 1)
+
+        self._slider_legend = QLabel(self.widget_2)
+        self._slider_legend.setObjectName(u"_slider_legend")
+        self._slider_legend.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_3.addWidget(self._slider_legend, 2, 1, 1, 1)
+
+        self._param_display = QSlider(self.widget_2)
+        self._param_display.setObjectName(u"_param_display")
+        self._param_display.setOrientation(Qt.Orientation.Vertical)
+
+        self.gridLayout_3.addWidget(self._param_display, 1, 1, 1, 1)
+
+        self._display = MatplotlibWidget(self.widget_2)
+        self._display.setObjectName(u"_display")
+
+        self.gridLayout_3.addWidget(self._display, 1, 0, 2, 1)
+
+        self.gridLayout_3.setColumnStretch(0, 1)
+
+        self.verticalLayout.addWidget(self.widget_2)
+
+        self.widget_6 = QWidget(main)
+        self.widget_6.setObjectName(u"widget_6")
+        self.horizontalLayout_6 = QHBoxLayout(self.widget_6)
+        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
+        self._infoData = QLabel(self.widget_6)
+        self._infoData.setObjectName(u"_infoData")
+
+        self.horizontalLayout_6.addWidget(self._infoData)
+
+        self._advanced_settings = QCheckBox(self.widget_6)
+        self._advanced_settings.setObjectName(u"_advanced_settings")
+
+        self.horizontalLayout_6.addWidget(self._advanced_settings)
+
+        self.horizontalLayout_6.setStretch(0, 10)
+
+        self.verticalLayout.addWidget(self.widget_6)
+
+        self.verticalLayout.setStretch(2, 10)
 
         self.retranslateUi(main)
 
-        self.tabWidget.setCurrentIndex(2)
+        self.tabWidget.setCurrentIndex(4)
 
 
         QMetaObject.connectSlotsByName(main)
@@ -372,9 +467,6 @@ class Ui_main(object):
 
     def retranslateUi(self, main):
         main.setWindowTitle(QCoreApplication.translate("main", u"main", None))
-        self._infoData.setText("")
-        self._slider_legend.setText(QCoreApplication.translate("main", u"Alpha (%)", None))
-        self._display_title.setText("")
         self._getDataPath.setText(QCoreApplication.translate("main", u"...", None))
         self._HSI_imaging.setText(QCoreApplication.translate("main", u"HSI imaging", None))
         self._extract_brain_surface.setText(QCoreApplication.translate("main", u"Extract brain surface", None))
@@ -389,6 +481,7 @@ class Ui_main(object):
         self._process_tumor_segmentation.setText(QCoreApplication.translate("main", u"Brain tumor segmentation", None))
         self.groupBox_3.setTitle(QCoreApplication.translate("main", u"MRI projection", None))
         self._process_MRI_projection.setText(QCoreApplication.translate("main", u"Start process", None))
+        self.label_13.setText(QCoreApplication.translate("main", u"Kernel size for external mask erosion (mm)", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_MRI_projection), QCoreApplication.translate("main", u"Create 2D MRI projection", None))
         self.groupBox.setTitle(QCoreApplication.translate("main", u"MRI skeleton", None))
         self.label_6.setText(QCoreApplication.translate("main", u"Max vessel size (mm)", None))
@@ -401,12 +494,17 @@ class Ui_main(object):
         self.label_3.setText(QCoreApplication.translate("main", u"Min vessel size (mm)", None))
         self.label_7.setText(QCoreApplication.translate("main", u"Threshold", None))
         self.label_5.setText(QCoreApplication.translate("main", u"Max vessel size (mm)", None))
+        self.label_10.setText(QCoreApplication.translate("main", u"Kernal size for specular reflection (mm)", None))
         self._manual_optics_vessel_selection.setText(QCoreApplication.translate("main", u"Manual vessel selection", None))
+        self.label_11.setText(QCoreApplication.translate("main", u"Kernel size for external mask erosion (mm)", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_blood_vessel_enhancement), QCoreApplication.translate("main", u"Blood vessels enhancement", None))
+        self.label_12.setText(QCoreApplication.translate("main", u"Enlarge tumor ROI factor", None))
+        self.label_9.setText(QCoreApplication.translate("main", u"Space between kpt (mm)", None))
         self._check_init_points.setText(QCoreApplication.translate("main", u"Check initialization points", None))
-        self._choose_init_points.setText(QCoreApplication.translate("main", u"Choose new initialization points", None))
-        self._test_manual_alignement.setText(QCoreApplication.translate("main", u"Test manual aligment", None))
+        self._use_custom_registration_metric.setText(QCoreApplication.translate("main", u"Use custom metric", None))
         self._process_optics_to_MRI_registration.setText(QCoreApplication.translate("main", u"Process optics to MRI registration", None))
+        self._test_manual_alignement.setText(QCoreApplication.translate("main", u"Test manual aligment", None))
+        self._choose_init_points.setText(QCoreApplication.translate("main", u"Choose new initialization points", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self._tabMRI_optics_MRI_registration), QCoreApplication.translate("main", u"Optics to MRI registration", None))
         self._files_fOptics.setText(QCoreApplication.translate("main", u"No files selected", None))
         self._select_fMRI_files.setText(QCoreApplication.translate("main", u"Select fMRI files", None))
@@ -418,5 +516,9 @@ class Ui_main(object):
         self._calculate_registration_error.setText(QCoreApplication.translate("main", u"Calculate registration error (mm)", None))
         self._results_registration.setText("")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self._tab_registration_validation), QCoreApplication.translate("main", u"Registration validation", None))
+        self._display_title.setText("")
+        self._slider_legend.setText(QCoreApplication.translate("main", u"Alpha (%)", None))
+        self._infoData.setText("")
+        self._advanced_settings.setText(QCoreApplication.translate("main", u"Advanced settings", None))
     # retranslateUi
 

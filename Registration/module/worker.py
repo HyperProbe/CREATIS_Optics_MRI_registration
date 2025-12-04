@@ -264,7 +264,7 @@ class WorkerThread(QRunnable):
 
             #Optics to MRI registration
             case self.process_idx.Optics_to_MRI_registration:
-                error,proj1 = plot_registration_results(self.Mypath, self.params)
+                error, proj1 = plot_registration_results(self.Mypath, self.params)
 
             #Plot alignement points in MR and optics images
             case self.process_idx.Optics_to_MRI_registration_check_Init_Points:

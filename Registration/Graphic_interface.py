@@ -36,10 +36,11 @@ class main(QWidget):
         self.ui._param_display.setMinimum(0)
         self.ui._param_display.setValue(50)
 
-        # #Projection type
-        # self.ui._projection_choice.addItem("Transverse")
-        # self.ui._projection_choice.addItem("Sagital")
-        # self.ui._projection_choice.addItem("Coronal")
+        #Projection type
+        self.ui._projection_type.addItem("Transverse")
+        self.ui._projection_type.addItem("Sagital")
+        self.ui._projection_type.addItem("Coronal")
+        self.ui._projection_type.setCurrentIndex(0)
 
         # #Projection slice order
         # self.ui._projection_slice_order.addItem("Auto")
@@ -55,7 +56,9 @@ class main(QWidget):
         #Projection axis passing through
         self.ui._projection_axis_passing_through.addItem("Axis passing through MRI origin")
         self.ui._projection_axis_passing_through.addItem("Axis passing through MRI center of mass")
+        self.ui._projection_axis_passing_through.addItem("No rotation")
         self.ui._projection_axis_passing_through.setCurrentIndex(0)
+
 
 
         #Process idx
@@ -96,13 +99,14 @@ class main(QWidget):
         self.ui._process_fMRI_to_T1_registration.clicked.connect(self.fMRI_to_T1_registration_process)
 
         #Connect MRI projection
-        # self.ui._projection_choice.currentTextChanged.connect(self.on_Projection_choice_changed)
+        self.ui._projection_type.currentTextChanged.connect(self.on_Projection_choice_changed)
         self.ui._process_tumor_segmentation.clicked.connect(self.brain_tumor_segmentation_process)
         self.ui._process_MRI_projection.clicked.connect(self.MRI_projection_process)
         self.ui._process_all_MRI_projection.clicked.connect(self.process_all_MRI_projection)
         # self.ui._projection_slice_order.currentTextChanged.connect(self.on_Projection_slice_order_changed)
         self.ui._projection_basis_choice.currentTextChanged.connect(self.on_projection_basis_choice_changed)
         self.ui._projection_axis_passing_through.currentTextChanged.connect(self.on_projection_axis_passing_through_changed)
+        self.ui._MRI_erode_edge_mm.textChanged.connect(self.on_projection_MRI_erode_edge_mm_changed)
 
 
         #Connect blood vessel enhancement
@@ -116,6 +120,8 @@ class main(QWidget):
         self.ui._manual_optics_vessel_selection.clicked.connect(self.manual_optics_vessel_selection)
         self.ui._manual_MRI_vessel_selection.clicked.connect(self.manual_MRI_vessel_selection)
         self.ui._clear_skeletons.clicked.connect(self.clear_skeletons)
+        self.ui._kernel_specular_reflection.textChanged.connect(self.on_kernel_specular_reflection_changed)
+        self.ui._kernel_exterior_mask_mm.textChanged.connect(self.on_kernel_exterior_mask_mm)
 
         #Connect Optics/MRI registration
         self.ui._process_optics_to_MRI_registration.clicked.connect(self.Optics_MRI_registration_process)
@@ -123,6 +129,10 @@ class main(QWidget):
         self.ui._choose_init_points.clicked.connect(self.Optics_MRI_registration_process_define_new_Init_Points)
         self.ui._test_manual_alignement.clicked.connect(self.Optics_MRI_registration_test_manual_alignement)
 
+        self.ui._space_between_kpt_mm.textChanged.connect(self.Optics_MRI_registration_on_New_space_between_kpt_mm)
+        self.ui._tumor_ROI_enlarge_factor.textChanged.connect(self.Optics_MRI_registration_on_New_tumor_ROI_enlarge_factor)
+
+        self.ui._use_custom_registration_metric.stateChanged.connect(self.Optics_MRI_registration_on_use_custom_registration_metric)
 
         #Connect display results
         self.ui._process_result_files.clicked.connect(self.Process_result_files)
@@ -135,6 +145,11 @@ class main(QWidget):
         self.ui._choose_validation_landmarks.clicked.connect(self.onChooseValidationLandmarks)
         self.ui._calculate_registration_error.clicked.connect(self.onCalculate_Registration_error)
 
+
+        #Advanced settings
+        self.ui._advanced_settings.stateChanged.connect(self.on_advanced_setting)
+        self.ui._advanced_settings.setChecked(False)
+        self.on_advanced_setting(False)
 
 
         #init display
@@ -169,6 +184,12 @@ class main(QWidget):
     ########################
     # Global ui interraction
     ########################
+
+
+    #Advanced settings
+    def on_advanced_setting(self, state):
+        print("on_advanced_setting",state)
+
 
     #Get main path
     def get_Data_Path(self):
@@ -236,15 +257,22 @@ class main(QWidget):
         self.ui._min_vessel_Optics.setText(str(self.params.sigma_minimum_mm_optics))
         self.ui._max_vessel_MRI.setText(str(self.params.sigma_maximum_mm_MRI))
         self.ui._max_vessel_Optics.setText(str(self.params.sigma_maximum_mm_optics))
+        self.ui._kernel_specular_reflection.setText(str(self.params.ksize_mm_kernal_specular_reflection_optics))
+        self.ui._kernel_exterior_mask_mm.setText(str(self.params.kernel_mm_optical_mask_erosion))
 
 
         #MRI projection
-        # self.ui._projection_choice.setCurrentText(self.params.projection_type)
+        self.ui._projection_type.setCurrentText(self.params.projection_type)
         # self.ui._projection_slice_order.setCurrentText(self.params.projection_slice_order)
         self.ui._projection_basis_choice.setCurrentText(self.params.projection_base_axis)
         self.ui._projection_axis_passing_through.setCurrentText(self.params.axis_projection)
+        self.ui._MRI_erode_edge_mm.setText(str(self.params.MRI_erode_edge_mm))
 
+        #Keypoints
+        self.ui._space_between_kpt_mm.setText(str(self.params.space_between_kpt_mm))
+        self.ui._tumor_ROI_enlarge_factor.setText(str(self.params.tumor_ROI_enlarge_factor))
 
+        self.ui._use_custom_registration_metric.setChecked(self.params.use_custom_registration_metric)
 
     def setEnabled_App(self,status):
         self.ui.tabWidget.setEnabled(status)
@@ -447,8 +475,8 @@ class main(QWidget):
     def MRI_projection_process(self):
         self.launch_process(self.process_idx.MRI_projection)
 
-    # def on_Projection_choice_changed(self, projection_type):
-    #     self.params.projection_type = projection_type
+    def on_Projection_choice_changed(self, projection_type):
+        self.params.projection_type = projection_type
 
     # def on_Projection_slice_order_changed(self, projection_slice_order):
     #     self.params.projection_slice_order = projection_slice_order
@@ -458,6 +486,10 @@ class main(QWidget):
 
     def on_projection_axis_passing_through_changed(self, axis_projection):
         self.params.axis_projection = axis_projection
+
+    def on_projection_MRI_erode_edge_mm_changed(self, value):
+        self.params.MRI_erode_edge_mm = float(value)
+
     ########################
     # Blood vessel enhancement
     ########################
@@ -522,7 +554,11 @@ class main(QWidget):
     def on_max_Optics_vessel_changed(self,text):
         self.params.sigma_maximum_mm_optics = float(text)
 
+    def on_kernel_specular_reflection_changed(self,text):
+        self.params.ksize_mm_kernal_specular_reflection_optics = float(text)
 
+    def on_kernel_exterior_mask_mm(self, text):
+        self.params.kernel_mm_optical_mask_erosion = float(text)
 
 
 
@@ -534,7 +570,10 @@ class main(QWidget):
 
         #Get init points if an init has been done
         if self.ui._display.pt_Optics is not None and self.ui._display.pt_MRI is not None:
-            self.params.kpt_optics = self.ui._display.pt_Optics
+            kp = self.ui._display.pt_Optics
+            for i in range(len(kp)):
+                kp[i] /= self.params.Optical_downsampling_factor
+            self.params.kpt_optics = kp
             self.params.kpts_MRI_tumor = self.ui._display.pt_MRI
 
         self.launch_process(self.process_idx.Optics_to_MRI_registration)
@@ -548,13 +587,26 @@ class main(QWidget):
         self.updateDisplayTitle(self.process_idx.Optics_to_MRI_registration_define_Init_Points)
 
         #plot images
-        error, MRI_img, Optics_img = main_get_skeleton_images(self.Mypath)
+        error, MRI_img, Optics_img = main_get_skeleton_images(self.Mypath, self.params)
+
 
         if MRI_img is not None and Optics_img is not None:
             self.ui._display.plot_two_images(MRI_img,Optics_img)
 
     def Optics_MRI_registration_test_manual_alignement(self):
         main_place_optics_on_MRI(self.Mypath, self.params)
+
+
+    def Optics_MRI_registration_on_New_space_between_kpt_mm(self, value):
+        self.params.space_between_kpt_mm = float(value)
+        # self.Optics_MRI_registration_process_check_Init_Points()
+
+    def Optics_MRI_registration_on_New_tumor_ROI_enlarge_factor(self, value):
+        self.params.tumor_ROI_enlarge_factor = float(value)
+        # self.Optics_MRI_registration_process_check_Init_Points()
+
+    def Optics_MRI_registration_on_use_custom_registration_metric(self, value):
+        self.params.use_custom_registration_metric = value
 
     #################################
     # Display final results
@@ -636,6 +688,7 @@ class main(QWidget):
         #Load landmark points
         status, points_optics, points_mri, reso_MRI, Optics_img = main_load_validation_landmarks_img(self.Mypath)
 
+        print("[onCalculate_Registration_error] "+status)
 
         if status == "Success":
             #Compute Euclidean distance in pixels
