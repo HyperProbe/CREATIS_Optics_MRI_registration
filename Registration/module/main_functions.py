@@ -4,7 +4,7 @@ from module.utils_BRATS import *
 from skimage.transform import resize
 
 import json
-
+import time
 
 class Registration_Params:
     def __init__(self, angle =-1, MRI_kpt=-1,  MRI_kpt_phys=-1,
@@ -42,8 +42,8 @@ class Params:
                  use_upscaled_images = False, register_fMRI_to_T1 = True, optics_skeleton_apriori = None,
                  MRI_skeleton_apriori=None, use_top_slice_for_projection= True, projection_base_axis = "Y axis",
                  axis_projection = "Origin MRI", mask_MRI_hemisphere=True, MRI_erode_edge_mm = 40,
-                 use_custom_registration_metric = True, alpha_custom_metric = 100,
-                 space_between_kpt_mm = 8, tumor_ROI_enlarge_factor = 2, Optical_downsampling_factor = 1):
+                 use_custom_registration_metric = True, alpha_custom_metric = 1,
+                 space_between_kpt_mm = 8, tumor_ROI_enlarge_factor = 1, Optical_downsampling_factor = 1):
 
         #bet params
         self.use_bet = use_bet
@@ -1952,6 +1952,23 @@ def main_plot_Optics_MRI_alignement_points(Mypath = Paths(), params=Params()):
     return "Success", display.astype(np.uint8)
     
 
+def remove_registration_result(Mypath = Paths(), params=Params()):
+    #Create registration result directory
+    result_dir = Mypath.output_registration_dir
+    
+    if params.registration_type == "Multi metric":
+        result_dir += "Mutli_metric_image/"
+    
+    if params.registration_type == "Skeleton":
+        result_dir += "Skeleton/"
+    
+    if params.registration_type == "Frangi":
+        result_dir += "Frangi_images/"
+
+    result_dir += "Optics_thresh_"+str(params.thresh_optics)+"/"
+
+    shutil.rmtree(result_dir, ignore_errors=True)
+
 def get_registration_result_dir(Mypath = Paths(), params=Params(), create_dir = False, id_kp = -1):
     
     
@@ -2281,8 +2298,11 @@ def main_Optics_to_MRI_registration(Mypath = Paths(), params=Params()):
 
 
     angles = np.arange(0,360)
+    processing_time = np.zeros((len(kpts_MRI_tumor_phys),))
 
 
+    #Remove result directory if exists
+    remove_registration_result(Mypath, params)
 
     #Loop over keypoints
     for id_kp_MRI in range(len(kpts_MRI_tumor_phys)):
@@ -2295,9 +2315,15 @@ def main_Optics_to_MRI_registration(Mypath = Paths(), params=Params()):
         kp_MRI_phys = kpts_MRI_tumor_phys[id_kp_MRI]
         kp_MRI = kpts_MRI_tumor[id_kp_MRI]
 
+        start = time.perf_counter()
         metric, NCC_val, overlap, _, _ = process_Optics_to_MRI_registration_1Kpt(result_dir, suffix_out_optics,
                                             kp_MRI_phys, kp_Optics_phys, kp_Optics,
                                             parameter_filename, angles, Mypath, params)
+        end = time.perf_counter()
+        elapsed = end - start
+        processing_time[id_kp_MRI] = elapsed
+        print("Processing time kpt :",id_kp_MRI+1,"over",len(kpts_MRI_tumor_phys),":", elapsed, "seconds")
+
 
         custom_metric = NCC_val + overlap
         if not np.all(np.isnan(metric)):
@@ -2359,6 +2385,9 @@ def main_Optics_to_MRI_registration(Mypath = Paths(), params=Params()):
             reg_params.Optics_kpt_phys = [float(kp_Optics_phys[0]),float(kp_Optics_phys[1])]
             
             reg_params.save(result_dir+"/Reg_params_custom_metric.json")
+
+
+    print("Processing time registration", processing_time.mean(), "+/-", processing_time.std(), "seconds")
 
     #Show registration for the minimal metric
     # open_itksnap_with_overlay(filename_MRI, filename_reg)
